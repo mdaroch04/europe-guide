@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Munich Travel Guide</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1B3A6B;--navy-mid:#2E5FA3;--navy-light:#D6E4F7;
+  --gold:#C9961A;--gold-light:#FDF3D8;
+  --cream:#FAF8F3;--white:#fff;
+  --text:#1A1A1A;--text-mid:#555;--text-light:#888;
+  --border:#E0DDD6;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Source Sans 3',sans-serif;
+  --header-h:64px;
+  --filter-h:50px;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--cream);color:var(--text);font-size:14px}
+
+/* ── HEADER ── */
+.site-header{
+  height:var(--header-h);background:var(--navy);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;flex-shrink:0;
+  position:relative;z-index:200;
+}
+.site-header h1{font-family:var(--serif);font-size:1.45rem;color:#fff;font-weight:700;white-space:nowrap}
+.site-header p{color:#9bb8e0;font-size:.78rem;margin-left:14px;display:flex;gap:10px;flex-wrap:wrap}
+.back-btn{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:var(--sans);font-size:.75rem;font-weight:600;padding:6px 14px;border-radius:20px;text-decoration:none;transition:background .18s;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.22)}
+.header-tag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#c5daff;font-size:.72rem;padding:3px 10px;border-radius:20px}
+
+/* ── FILTER BAR ── */
+.filter-bar{
+  height:var(--filter-h);background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding:0 20px;
+  position:relative;z-index:150;flex-shrink:0;
+  box-shadow:0 2px 6px rgba(0,0,0,.06);
+}
+.filter-label{font-size:.72rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;white-space:nowrap}
+.filter-btn{background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);font-size:.76rem;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--sans);transition:all .18s;white-space:nowrap}
+.filter-btn:hover,.filter-btn.active{background:var(--navy);border-color:var(--navy);color:#fff}
+.count-badge{background:var(--navy-light);color:var(--navy);font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:10px;margin-left:auto;white-space:nowrap}
+
+/* ── MAIN LAYOUT ── */
+.layout{
+  display:flex;
+  height:calc(100vh - var(--header-h) - var(--filter-h));
+  overflow:hidden;
+}
+
+/* ── MAP PANEL ── */
+.map-panel{
+  width:42%;
+  flex-shrink:0;
+  position:relative;
+  border-right:3px solid var(--gold);
+}
+#map{width:100%;height:100%}
+
+/* ── CARDS PANEL ── */
+.cards-panel{
+  flex:1;
+  overflow-y:auto;
+  padding:16px;
+  background:var(--cream);
+}
+.cards-panel::-webkit-scrollbar{width:6px}
+.cards-panel::-webkit-scrollbar-track{background:#f0ede6}
+.cards-panel::-webkit-scrollbar-thumb{background:#c0bbb0;border-radius:3px}
+
+.places-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+}
+
+/* ── CARD ── */
+.place-card{
+  background:var(--white);border-radius:10px;overflow:hidden;
+  border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+  transition:transform .18s,box-shadow .18s;
+  display:flex;flex-direction:column;
+}
+.place-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.place-card.hidden{display:none}
+.place-card.highlighted{outline:3px solid var(--gold);outline-offset:0}
+
+/* ── SLIDESHOW ── */
+.slideshow{position:relative;height:190px;overflow:hidden;background:var(--navy);flex-shrink:0}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .4s ease}
+.slide.active{opacity:1}
+.slide img{width:100%;height:100%;object-fit:cover;display:block}
+.slide-btn{
+  position:absolute;top:50%;transform:translateY(-50%);
+  background:rgba(0,0,0,.42);backdrop-filter:blur(3px);
+  color:#fff;border:none;width:28px;height:28px;border-radius:50%;
+  cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
+  z-index:10;transition:background .18s;line-height:1
+}
+.slide-btn:hover{background:rgba(0,0,0,.7)}
+.slide-prev{left:7px}.slide-next{right:7px}
+.slide-dots{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:10}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45);cursor:pointer;transition:background .18s}
+.dot.active{background:#fff}
+.cat-badge{
+  position:absolute;top:9px;left:9px;
+  background:rgba(27,58,107,.82);backdrop-filter:blur(4px);
+  color:#c5daff;font-size:.65rem;font-weight:600;
+  padding:3px 8px;border-radius:14px;text-transform:uppercase;letter-spacing:.05em;z-index:10
+}
+.daytrip-badge{background:rgba(201,150,26,.88);color:#fff}
+.price-badge{
+  position:absolute;bottom:26px;right:8px;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(3px);
+  color:#fff;font-size:.72rem;font-weight:600;
+  padding:4px 8px;border-radius:7px;z-index:10;
+  display:flex;align-items:center;gap:4px
+}
+.price-dots{font-size:.8rem;letter-spacing:1px}
+.price-free{color:#7de0a0}
+
+/* ── CARD BODY ── */
+.card-body{padding:12px 14px;display:flex;flex-direction:column;flex:1}
+.card-title{font-family:var(--serif);font-size:1.15rem;font-weight:800;color:var(--navy);margin-bottom:1px;line-height:1.25}
+.card-hint{font-size:.65rem;color:var(--text-light);margin-bottom:1px}
+.card-category{font-size:.72rem;color:var(--text-light);margin-bottom:8px;font-style:italic}
+.card-desc{font-size:.95rem;color:var(--text-mid);line-height:1.6;margin-bottom:10px}
+
+/* ── DROPDOWN ── */
+.details-toggle{
+  display:flex;align-items:center;gap:6px;
+  background:none;border:1.5px solid var(--navy-light);
+  color:var(--navy-mid);font-size:.75rem;font-weight:600;
+  padding:5px 11px;border-radius:6px;cursor:pointer;
+  font-family:var(--sans);transition:all .18s;width:100%;justify-content:center;
+  margin-top:auto;
+}
+.details-toggle:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.details-toggle .arrow{transition:transform .25s;display:inline-block;font-style:normal}
+.details-toggle.open .arrow{transform:rotate(180deg)}
+
+.details-body{
+  display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px;
+}
+.details-body.open{display:block}
+.info-row{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid #F0EDE6;padding:5px 0;gap:4px}
+.info-row:last-child{border-bottom:none;padding-bottom:0}
+.info-label{font-size:.68rem;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.04em;padding-top:1px;line-height:1.4}
+.info-value{font-size:.76rem;color:var(--text);line-height:1.45}
+.info-row.tip{background:var(--gold-light);border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.tip .info-label{color:var(--gold)}
+.info-row.may{background:#EDF7ED;border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.may .info-label{color:#2E6B3E}
+
+.header-inner{display:flex;align-items:center;gap:0}
+.map-legend{
+  position:absolute;bottom:12px;left:10px;z-index:1000;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(6px);
+  border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;font-size:.72rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.legend-item:last-child{margin-bottom:0}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0}
+
+@media(max-width:900px){
+  html,body{overflow:auto;height:auto}
+  .layout{flex-direction:column;height:auto;overflow:visible}
+  .map-panel{width:100%;height:320px;border-right:none;border-bottom:3px solid var(--gold)}
+  .places-grid{grid-template-columns:1fr}
+  .site-header p{display:none}
+  .card-hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <h1>🇩🇪 Munich Travel Guide</h1>
+    <p>
+      <span class="header-tag">🌸 Late May tips</span>
+      <span class="header-tag">📸 Photo slideshow</span>
+      <span class="header-tag">📍 19 places</span>
+    </p>
+  </div>
+  <a class="back-btn" href="index.html">← Back to all cities</a>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="filterCards('all',this)">All Places</button>
+  <button class="filter-btn" onclick="filterCards('city',this)">City Centre</button>
+  <button class="filter-btn" onclick="filterCards('culture',this)">Museums &amp; Culture</button>
+  <button class="filter-btn" onclick="filterCards('church',this)">Churches</button>
+  <button class="filter-btn" onclick="filterCards('daytrip',this)">Day Trips</button>
+  <button class="filter-btn" onclick="filterCards('free',this)">🆓 Free Entry</button>
+  <span class="count-badge" id="count-badge">19 places</span>
+</div>
+
+<div class="layout">
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1B3A6B"></div> City Centre</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8B4513"></div> Museums &amp; Culture</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6B0000"></div> Churches</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a4a1a"></div> Day Trips</div>
+      <div class="legend-item" style="border-top:0.5px solid #ddd;margin-top:5px;padding-top:5px"><span style="font-size:.7rem;color:#888">🆓 Free Entry = 16 places with free access</span></div>
+    </div>
+  </div>
+
+  <div class="cards-panel" id="cards-panel">
+    <div class="places-grid" id="places-grid"></div>
+    <div style="text-align:center;padding:16px 0 6px;font-size:.75rem;color:var(--text-light)">
+      Munich Travel Guide · Entry prices approximate 2024/25 · Gute Reise! 🍺
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const P = [
+  {id:1,name:"Marienplatz",emoji:"🏛️",cat:"Historic Square · City Centre",tag:"city",priceLabel:"Free / €6 tower",free:true,
+  lat:48.1374,lng:11.5754,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFM-M5nWqXwFzxEY1701ztePd_MwHEOa2GC-ePPOmDI5pAZVLr7KIe0SRfzObAMcFAjtqwE2tFXv4QHQx-mmJA4fc6jJzeoE_kd-yIelwmaEnTzA59389uwNXQqvkFNqCctugrE6xnVbTsRFrY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE9LLfLgDRIp0GRn5htQIzYeecNmO2syUHNTfjDkOgB7uzv-ebxdCTHgngJ25wlu6hRc1c0CE1Z9TNVmQAeX5ofchSkQZCzCeKnQG1ZcwIVgRfwYjTwdarr_sI4IObLeJemPRd32pIk5jctnpY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEZGqkvFK3t8XJJ3BfX7qgPU0jcMMin8od5LSa8EC8NTNMO_1Uyx3CY_tKG8hXxmR0y8T2IYEZU5tD8pa4vH-sTNkwctV3-0CD1amtqBs0uayiE6i1X_bYN3741sSV5kg3FT5pZrNFJcOO8nA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEWfKrI63E_i0KcgzGUqHoJ446dXm43wgPWvoTpdM1RWqNqo9mTUtF8X0Q4SMuOY7PBSACg51TzJWPyHP4C7bEJChKTcfGDnysBKVF4v2fqPj5v1Ii4wJu_O1fUgyKfGMHJIWX7rYiTo4G1qz0=s800-w800-h500"],
+  desc:"Munich's beating heart and main public square, framed by the spectacular Neo-Gothic Neues Rathaus. Every day at 11am the famous Glockenspiel chimes and 32 life-sized figures re-enact stories from Munich's history.",
+  distance:"City centre — this IS the reference point",transport:"U/S-Bahn: Marienplatz (U3/U6, S1–S8)",cost:"Free to visit · Rathaus tower lift: ~€6",time:"30–60 minutes",
+  tip:"Arrive a few minutes before 11am for the Glockenspiel. Climb the Rathaus tower for one of the best city panoramas.",may:"Outdoor café terraces are in full swing. The adjacent Viktualienmarkt is at its most colourful."},
+
+  {id:2,name:"Viktualienmarkt",emoji:"🧺",cat:"Open-Air Market · City Centre",tag:"city",priceLabel:"Free",free:true,
+  lat:48.1355,lng:11.5764,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHxKmNNgktrgKm5svIo8BMy-o5YFWK6dcs9Gf9EUYUVD0LIgSmUJzC69-Ec7IS1OMH2Fc010XCoA-Q6TKsPSKjKcNmGdBFtW0Ml3iQC8CWeovYXSQOUJzOkWJ8GcExhMG5CX-urUOibS0VdDA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHKAdJ_PqDHtwgKcdRC6uodWfDPB3Bu6Iv-z6i1GPSlpTQoiHnDBpv0CLMrgU2bA0x6AYwg_R0lEiL8pPXsEqB7_M7U9iuF6-xRJhlqR2LOMxDLMGoa_iKyd6M2ldEsPxYw6m1prYY4HEyEvO4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGm3mKElFrktA83yC_gig2QR11G-_kvQfHhi9s-YgLkwuY_uLeR71DfMHW_JBJdu7CCwCmG-UtiUJQ06-Sjl5udhTiNaUvTIRxVvu8zbzWVO4bq6Lm30ftTbW1te2oZ_xzTd89YEAnbvQMMeA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGb9uLhuGmuXAGJveTpfgALXR3d9qYygS8XKIiS0iIguvtui8JSrz4FTJk52QwtSSnY1hlHuM2iVl2SEbASKLY3c5_jeiXr6qZJ1pD0Wk-97hBIOTddOb_DXj6eDZTxOGOX1RvEW9KMb49-_Sc=s800-w800-h500"],
+  desc:"A beloved outdoor food market operating since 1807, just steps from Marienplatz. Stalls overflow with Bavarian cheeses, fresh pretzels, smoked meats and seasonal produce. A central beer garden opens daily from around 9am.",
+  distance:"0.3 km from Marienplatz — 5-minute walk",transport:"Walk south from Marienplatz · U/S-Bahn: Marienplatz",cost:"Free entry · Food & drinks extra",time:"30–60 minutes",
+  tip:"Visit early (8–9am) for the freshest produce. Closed Sundays.",may:"Late May brings beautiful seasonal produce and the beer garden is one of the best in the city for a warm-weather break."},
+
+  {id:3,name:"Frauenkirche (Cathedral)",emoji:"⛪",cat:"Landmark Church · City Centre",tag:"church",priceLabel:"Free / €7.50 tower",free:true,
+  lat:48.1387,lng:11.5730,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNG3Mm-juKvSPdmFRQ9maIA05tIQ5iCjf9xUeMQVhxsHFKI1bUAjJ4jxCLOyCMEoFFAIt1u9Xb4pSkfYiy-qRbe1PlamaNLK21mvV3OdgZsd5iv8wbK8s7izLa6OoiIl-4-KGa06qxhjDDBcFd0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEH5fIwUEPCsk_usdPuymZBLGE9fZDcDjjMae4ByjV84Lf84RV7LtbB1eyTSBDVqNSpnAfJK7EcK_6uDntmkyCExcLCsXaxVDX9FYxmuTQ03i0GO-4J2i6ooKtlVk-nujM5jkQRWIxBbMk62w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOh7RQP_K93O7l6kW7XeFjbmFZ-EfgQVbk56Cp4Z_ocIbkGGLJCW-Y8Uv79CbftJx8L8Q3ZzICAggxE8buHszcvqZyR1p7TtJBWZTUPQkgcruCWDOnwff09FZul5O_xMyR54v7mtyivRSY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHNyLBs3OdGiQ4R0lFco6YElWah8XATTZoW9hrJrmi78TpGBjJ3KII3yYsGWocAr8z9krbxTqLyOlUCvKTWfMCIkA3t61ZsNd7u4Cg0GAmdk82rzcT5DkyUMDBWiA9cf92-7thUutxZ8-6-w88=s800-w800-h500"],
+  desc:"Munich's iconic cathedral, recognisable by its twin onion-domed towers. Built in late-Gothic brick style between 1468–1488. Look for the famous Devil's Footprint near the entrance — legend has it the devil stamped his foot here.",
+  distance:"0.3 km from Marienplatz — 5-minute walk west",transport:"Walk west from Marienplatz",cost:"Church: Free · South Tower: ~€7.50",time:"30–45 minutes",
+  tip:"Book the South Tower online to skip the queue. Note: may close during services.",may:"Good light for photography in the afternoon with clear late-spring skies."},
+
+  {id:4,name:"Munich Residence (Residenz)",emoji:"👑",cat:"Royal Palace · City Centre",tag:"culture",priceLabel:"€9 museum / €17 combined",free:false,
+  lat:48.1418,lng:11.5795,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEcItmnK7Size79mGpsIKEDtAOpSN4cN8HLx7XB-YFx-ejp2mT_5OqtZc_-Y-CIeeH54WMG9NIXbYwNguQvtYnibkk8ZhTiuz1lhRIUfLQM1P-_eEl10nRtnomUnzuxGvEJwz-YB_WFmpFLgg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGmOqQgFSr_qL8SRmKe4f_l37wqBJs3Pro9GgB49ZLKwkTd62hMfmnnLZTldFO4eQJKZBc0RN-sPyDbnaB2oibxwZlEBjd2hdAZZd1eaxnT122GfY32rmXsagR5HiJFlNuOQtr1tESCbDxfw20=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHvwqwf8v4leygHirUfETjvk73B1iZ0M7GzwmmfqOBITJe_6C6iC5Impw9wT9GVNoOismlAfwtOMCqf9HeFR4nNF5THuj-9qzM75_kqsqEVzC47r3tek8o_CQdFSfkViqX6m-9oje_szCBjnEY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFnIMWb55MmUmaYQOyZbr7eWBrKaBWq3d6Z7h1Wy1eZFjLI_hPrTm_nbNAR9H9WE5bT0qz4zV-znniSv0RzSQBs3FLz_4D0Fj7QOmANDh18EPebgv5nWsNX_s7lmsDCyerLUK5NdQLJh2qYzQ=s800-w800-h500"],
+  desc:"Germany's largest city palace — the official seat of Bavarian rulers for over 400 years. Its 130+ rooms span Renaissance, Baroque, Rococo and Neoclassical styles. The Treasury houses astonishing crown jewels spanning 10 centuries.",
+  distance:"0.7 km from Marienplatz — 10-minute walk",transport:"Walk northeast · U-Bahn: Odeonsplatz (U3/U6)",cost:"Residenz Museum: ~€9 · Treasury: ~€9 · Combined: ~€17",time:"2–3 hours",
+  tip:"Buy the combined ticket for best value. An audio guide is strongly recommended.",may:"Quieter on weekday mornings in May. The Hofgarten park next door is gorgeous for a post-visit stroll."},
+
+  {id:5,name:"Hofbräuhaus München",emoji:"🍺",cat:"Historic Beer Hall · City Centre",tag:"city",priceLabel:"Free entry / ~€12 per beer",free:true,
+  lat:48.1376,lng:11.5797,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGy-TNtq-KAi-t2I8wlhI2C1zNYtGVQqdT5QbXkTvoXXWskwaIqsfa-RSvQDv7MdA5P0eY3FguCeVktVGJ3UZ422uUbHE2TJ7iP5sdIsbCGrZPNV3lL-i8JfO7VM3cF9WnQ3oB3ZRUtt18s=s800-w800-h500","https://lh3.googleusercontent.com/places/ANXAkqGjlqgg4OQ11GUIdoo3tc4GbtO8Jkesd6jpfDXqo576IzUjh78sgn39QH0-H_Aqo3F7lpy-JHqJiHVYwS8iQyM22tjAZxFxBSs=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHicOBv07m_Ews8zQAO2KxKQt5VMQO3ZDkNndr7jezsqUtdbivLCEVC76ML9Lbh8u_M-L3iTpyq7cL-IHLZgjjewxoLz2dxwpKw2QFmU3TZ7mrmG5z_KNUlxhmZYrS0MBb6XHflCilrLuQ9krQ=s800-w800-h500","https://lh3.googleusercontent.com/places/ANXAkqGFDuKI6QmbgwamG7xdVFJ7l0QzApCjiyzWUScuMD5vX2wGCg9vjuXmn9iViNO0gD-BWD_wFl9zUVfiM2nt8pV0JIQuOF3S_fE=s800-w800-h500"],
+  desc:"Founded in 1589, the Hofbräuhaus is arguably the world's most famous beer hall — an unmissable slice of Bavarian culture. The ground-floor hall fits over 1,000 people amid painted vaulted ceilings and live brass band music.",
+  distance:"0.5 km from Marienplatz — 8-minute walk east",transport:"Walk east from Marienplatz",cost:"Free entry · 1L Masskrug: ~€11–12",time:"1.5–2 hours",
+  tip:"The upstairs restaurant is quieter and better for a meal. Arrive before 7pm for a table without a long wait.",may:"The outdoor beer garden opens in good weather — a lovely option in late May."},
+
+  {id:6,name:"Nymphenburg Palace",emoji:"🏰",cat:"Baroque Palace & Gardens · West Munich",tag:"culture",priceLabel:"Free gardens / €8–15 palace",free:true,
+  lat:48.1583,lng:11.5033,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFBewfl97d1pTlmp6OSy7Zs1iBIg_TbeZ6N4aCnSSWfCxJ5poi35vk39gKN-YrDKJMG2kASY1RHpVOLTC0lABjDxjkzosMGv2P6eOf4uJ9c1RA0XGDX6FSdI-f3W7jg78A3iKt4ROW5u5wqpnKRvxc5SA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHSTiGjPtxQH8r2hidN4Tgr5GW58nqR-Zzfj5aYfLJvseSI_pUB_vS0-poQJXWABMrxaXaMC_lnT4KGV3cojS5zyu3_iGiHD5cP5Y_2IME0nxaSBypqJLLZ3Kt1GdTmmRmAT-tLmz1500NxXw0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHVXal3hL6ZlubQZRDnEFEDMl4CTLv8aEehXZ1ney4bjMhVU62IsJpzUeR6qDohb_wV_OrkoygNW7Id7XugyidYaQEpZnCs_9g_TFykbK0Gr7CEuU_aGHofREu4Dt-5gzZDoCrXXwjuyFLLLyLGcCnwrw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEmO7IB1pSF7OLcm1mzdOuZ9rfSXru9koW4N7djeZ8oyBkNUivp5Buw_e-LC0Che932Zbl14S6KQQzkVH0fMxoTjWwNOKwmd6uxFrUgB5ML7TiFxKTpTTK5lMA3sNUA2X-n6WtQmr3RqaQNrdk=s800-w800-h500"],
+  desc:"A stunning Baroque summer palace built from 1664, once the favourite retreat of Bavarian kings. The grand facade stretches 700 metres and the surrounding park is one of the most beautiful in Germany.",
+  distance:"6 km from Marienplatz — ~20 minutes by tram",transport:"Tram 17 direct from Marienplatz to Schloss Nymphenburg",cost:"Gardens: Free · Palace & museums: ~€8–15",time:"2–3 hours",
+  tip:"Book palace entry tickets online to avoid 30+ min queues. The gardens and canal are free and worth lingering in.",may:"Late May is peak season for the palace gardens — flowers in full bloom, fountains running."},
+
+  {id:7,name:"English Garden (Englischer Garten)",emoji:"🌿",cat:"Urban Park · North Munich",tag:"city",priceLabel:"Free",free:true,
+  lat:48.1642,lng:11.6056,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFKyvurZgkCE0Mww6t1D7aq9omO69c6cnMQcxoyhpz-rHCrppfT8haX0CwrZDdsrjd_bfFCQZ62ADFdXZ-ISOqqpf_klcNncHL8CPqBIzTDA61djmtQn_HylMA73SItGfwUvekt2GdegJaITppwWQT9=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFy_Y-JLGRxs0A3wUyURq9UC4muoadE91KN5r-mHLB8FousBFUyOBrR1jD-6XakQIV909KPG5d4b96ZY9wD2bS3fh6KX6gfnEchsaamPNS1Sd1dJqhGsfMtRee6t8ZEFt8r5Ld8LT2mJwmuKpI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF1y2nzu1YOlAlneITBG5PT2unHEauXGUutq7uzqm0hCzXa3jfrsMwbJISrhMxsmOuvMYvUAOdMe_L4lZYiBlfzKYOTREqV3xXXHvv1oIfg3Q_dfuB4vGAyNseNMyA7OqXCkt-1tA1Gd5V5LB9BxvsQDQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHK25hMeQTwgIDAs1F9ilH-LAnXfbVrE-rhVGi5Gqm-126e0XVUUDNHK3KBWHpCX62jP8W8OSY0q13OwfmlaV9vY-NHdHc6k5LOsvSawMLXLOsddBfcBmPnMGTAgccEhaWQhqTLT22LYADGr9Q=s800-w800-h500"],
+  desc:"Larger than New York's Central Park, this vast 910-acre green space is one of the largest urban parks in the world. Head to the Eisbach channel to watch surfers riding a man-made standing wave — one of Munich's most unexpected sights.",
+  distance:"1.5 km from Marienplatz — 20-minute walk or short U-Bahn",transport:"Walk north, or U-Bahn U3/U6 to Universität then walk",cost:"Free",time:"2–4 hours",
+  tip:"The Eisbach surfers ride year-round. The Monopteros Greek temple on the hill gives panoramic views.",may:"Late May is perfect — locals picnic, swim and pack the beer gardens. The English Garden is at its very best."},
+
+  {id:8,name:"Olympiapark",emoji:"🏟️",cat:"Olympic Park · North Munich",tag:"culture",priceLabel:"Free park / €11 tower",free:true,
+  lat:48.1754,lng:11.5520,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGVQRRikbNlf6ofwvqbaSuXE6WFkeeitURJ7hHDplj0LS1-iIK976BUwZwbBouNmUPaPe0s8BZqGItHG7fNy0Yqy2r1jk5-fG_P3FA1w5f5bcXBBCQQif2cT7ENSOPW5W4sKhprS4xV3oXPKA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE3SjD5DiVu1hulrXjpDnpyAFZxQevBs-zqtJ2T5pavXeocKYPKBqB1URgkdWx5gRpIUv6XJg2YT1ttSqhkJKBvD990YMtaUX9ED14LrB4UnjLiBL7TJR03_ugeTWMbf7RZHqdxDTR_XFrCQKE=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGJigC1HuV6gr2VwdazVVnKa9UUlJRvgoRSzu4qhVA43JatS5DGSVndc42LsxmWORCdd26sbIabO1hH1IWpkzz8yFGUdut-HUc5UhKPgAlCCDfyn8rxgUi0Co5Zw12Wneg-Xij0EesX7Taj=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFkqIXeefOt45Z4Xm3r3Uz4qOvs2VwFaa8bByEnQDINAbXpk79_wXw5EaulgF4YQIPgVYtyunjhnEp9wOtKD5sRGMWA7oUgsMOnJ622EBrrEPQJkInPAVmmlpK1DzvutdUnoSB2zqhQoKfAOA=s800-w800-h500"],
+  desc:"Built for the 1972 Summer Olympics, this futuristic park with its iconic tent-like acrylic roof is one of Munich's most striking architectural landmarks. Climb the 291-metre Olympic Tower for panoramic views of the city and the Alps.",
+  distance:"4 km from Marienplatz — 20 minutes by U-Bahn",transport:"U-Bahn U3 to Olympiazentrum (direct, ~20 min)",cost:"Park: Free · Olympic Tower: ~€11 · Stadium tours: ~€7",time:"1.5–2 hours",
+  tip:"Pair with BMW Welt next door for a great half-day in north Munich. Clear mornings are best for Alpine views.",may:"The outdoor areas come alive in late May. Check the event calendar — concerts are held here throughout summer."},
+
+  {id:9,name:"Deutsches Museum",emoji:"🔬",cat:"Science & Technology Museum · Isarvorstadt",tag:"culture",priceLabel:"€15 adults / €8 children",free:false,
+  lat:48.1299,lng:11.5835,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEI8Ggwjo_I7EdtlfknHskPvDYYfLifzajHqqoL5LRTMzfBRi3rfbSqzAe1Jbwhg7PKNMJP5kR75u_2N3w9mvSLZFTnDIa1zsnQq-cQ3oCriwfkYA3EI5Ey9HNXRKWx2WczwpNA_bnK6BCFVw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE4ozPdOkLLqOWV-ykflKeYqZV10c_YMmVhVnVZ5haVuxPlKasQO4b6zzLKvhe6OTk2YYEu97DXCYJCMdKIbi8HPaUQBCY_dvu16HM0bJEPCj_wkiuPrta8hq1qUZzaLrTh8PutovSK_Gxu=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNENUoHlSpYjuXGtrbAD1DKd_Zd-bb5pVJgL0ocbR7K_di8d4Vjunkb4JOBbM_xGeQEzsXq83Qq0MX49wdBPwNQfaCQFmh70bb66nGcGeCSANACZVDNeTG-sSzNiFT6fjSeOBnmNcFh8OBdXBA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEyYO9jNuOkJC0jK-RuwKuFRZN4n-gRPgQDg1DaCWvVRufDr7LEek-gyd3fybLDeMo9uUOqgCyB-y0-PTyxJe6v_pMaof9TkKnVUB3r763SMzQvsqyd1s1vvXvzkAdS3WQUfATuEYcqxIAIsw=s800-w800-h500"],
+  desc:"The world's largest science and technology museum, spanning 73,000 m² across an island in the River Isar. With over 73 departments covering everything from aerospace and mining to marine navigation, you cannot see it all in one visit.",
+  distance:"1 km from Marienplatz — 15-minute walk",transport:"Walk east, or Tram 16/17/18 to Deutsches Museum",cost:"Adults: ~€15 · Children (6–17): ~€8",time:"3–5 hours",
+  tip:"Focus on Aviation, Aerospace, and the underground Mining Tunnel. Buy tickets online.",may:"Good wet-weather option if May showers arrive. Opens 9am daily."},
+
+  {id:10,name:"Neuschwanstein Castle",emoji:"🏯",cat:"Alpine Castle · Day Trip (Schwangau)",tag:"daytrip",priceLabel:"€18 entry / ~€40 train",free:true,
+  lat:47.5576,lng:10.7498,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNG_NWsroMgbERF7cimiimEsCmryfh8Z3thTblMMTF0YXuDmnXTAqVYrs1Qyx7Twc8iQY6wKVgJCYAWKAwjW2-hnDJmOhqrnCoZXUHZNbiA21wR0B2rzQCNCtfr2pTW2HkdeW5bl2qd7ZGj_EA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEzgTOmYlYNRxn2hrM6p8z16Y0z2wRApEZ-TVubtQ2qCiIlZWVwjZzoJPFW9sO6pp_D7_CIEZBjQBkhXzaSMZ1L34PS21kBojSNuqSIdalbe6hNEyApAxsg1618TSAclb0zMhI54SuIyBE0pZQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFzERcmamdECt73ENnibxHAVHA44bSzFpaKw4-GajuauTZi7iMdunUB4W-kVF3lzY2_w6KxlRh_7KrKEhP_9pX1oOp4uvMMfOxIhM5G321iw8jsc4kYX4bv_FGy0_J5-SHitnjDnZYkje5AG4zQ1oZUdw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHnn3G89BMQwXn2ww5YOW56qw0GOEutF70o3XrU09yNWg1AY5hY5UL7CwJK32LQKLSYDpOVAtAzGseutDoIiJamLYrLayh15TEMC12wiCLxTWzIKjhfNIYGNFsI4mLp6sofihLzOa8v6PpS=s800-w800-h500"],
+  desc:"King Ludwig II's fairy-tale castle perched on a rugged hill in the Bavarian Alps — the inspiration for Disney's Sleeping Beauty castle. The interior is an extraordinary fantasy of Wagnerian murals and gilded halls. The walk to Marienbrücke bridge gives the most iconic view.",
+  distance:"130 km from Munich — ~2 hours by train + bus",transport:"Train: Munich HBF → Füssen (change at Buchloe), then Bus 73/78. Or guided day-trip.",cost:"Train: ~€30–50 return · Castle entry: ~€18",time:"Full day (depart by 8am)",
+  tip:"Book castle tickets online at neuschwanstein.de WELL in advance — they sell out fast.",may:"Late May is lovely — wildflowers in bloom, snow on the peaks, before the peak summer crowds."},
+
+  {id:11,name:"Dachau Memorial Site",emoji:"🕯️",cat:"Memorial Site · Day Trip (Dachau)",tag:"daytrip",priceLabel:"Free / €4.50 audio guide",free:true,
+  lat:48.2679,lng:11.4688,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFbvwedUYEaQuMnVgc0pMXVQZvY6fCDR0QeK4k4eS9EH-K2SP8RekyzG8687uP79As8yu91oVPzKw4B0JnVf_9WraRreAl6BNF0xTcQNGR-hmSo3fTSAFv0dTTzlO-s2L2HZ6FS9xd6pEBAOoU=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHZ37NxGrnck7W5sPBILfnosNTEqzF_O7ZlmlaGc8zUyMp8d4_IYKD1FnIz8RptRHIk8DxTHOmVezkSl6R-rx0_JCL5FU0s_hqqWTP7N6DJ5ZYw2gYzAg9zj5PiCjJU2wA_2_6LBeKK1mhywA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNECWsH4ZANwaJJIq2twzobD-ejZGwf3-n0-KkZXw9_ZAcLoXFl1LESR-f6W_Dc7qUgfWVJASwxpj1-h2qWfmc5xVqgNq_dVuSROF7ByVBwplnQrHFUgtmj1-3v5oxAh4SEPHsiqxhBxS-mgo7U=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG1YSp9ROkG7U8Xvjq_Rkce1rgyPaq0QQ2WKFy1BmXLCfM3hoxD-TT4CfVpB74nbX5qA-Bzoid5AV5avM6kmFUKuHBOFVLGsYSg2GuVFnb6PgvPanreiAovp6y6CPglqhvwYM3ZNUD38cmb=s800-w800-h500"],
+  desc:"The first Nazi concentration camp, opened in 1933, is now a powerful memorial and museum just 30 minutes from central Munich. Extensive exhibitions document the history with artefacts, personal testimonies and photographs.",
+  distance:"20 km from Munich — 45 minutes by S-Bahn + bus",transport:"S-Bahn S2 to Dachau, then Bus 726 to the memorial",cost:"Free · Audio guide: ~€4.50",time:"3–4 hours minimum",
+  tip:"Join a guided tour for proper historical context. Open Tue–Sun; closed Mondays.",may:"A thoughtful half-day that pairs well with an afternoon back in Munich. Closed Mondays — plan accordingly."},
+
+  {id:12,name:"BMW Welt & Museum",emoji:"🚗",cat:"Museum & Showroom · North Munich",tag:"culture",priceLabel:"Free Welt / €12 museum",free:true,
+  lat:48.1772,lng:11.5563,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHoBwnYlgsrY4TNRQvv5teog4l4RCLOp4jRr0S86AMkzWXEHhHBCo3wS2zkV03q7-t6Tc1iZ31AnjWeC8uNDS1PAXAuKFVGvIOZBgXbZJotCsVIIWJtVQkLopjUBU0QEx_Z4H5onVSefOhpA3g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGNfwsNlaCdtFtLcLS_ks7wy98nSKF_HeeoKzGAPLn6_xgQNT8Per-DFxR5TbCN-2BAdqIJuun1HpFA0A_7FHWGN5vuo1ArfnjnRjxXEWD3Yew7tu_0bx3U-kzWZdTNH9g6lHkOI_MJsg_FNQ=s800-w800-h500","https://lh3.googleusercontent.com/places/ANXAkqFtn1cIToeBbKMhqWs0kDiX_8-7W7EzkpJWWt3qa8Odwualdl8enS-8PceVYKBZN2tdo4sFHTWmE6cVlQKBqKscfjR9uCg_R9o=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFwuzpM6YeRFmhtSJ5XJ3IZ0XUNeBjzxtScQGXMfnV5ssYhcccICIrD72LQTcAmr7oSC2-gBwSr9goykpw9sFNN6yx7Wnr52uAh5mLFDljrBZ1YBEyOX-biQN-9cRe_9hYinxpGTrMp-lLzNC4=s800-w800-h500"],
+  desc:"Two unmissable attractions side by side at Olympiapark. BMW Welt is a striking double-cone showroom — free to visit and architecturally spectacular. The BMW Museum traces the brand's history with rare vintage vehicles across 9 themed 'bowls'.",
+  distance:"4.5 km from Marienplatz — 20 minutes by U-Bahn",transport:"U-Bahn U3 to Olympiazentrum · 2 minutes from the station",cost:"BMW Welt: Free · BMW Museum: ~€12 adults",time:"1.5–3 hours",
+  tip:"Easily combined with Olympiapark next door. BMW Welt's café has reasonable prices.",may:"Arrive before 10am or after 3pm to avoid tour groups. Outdoor plaza pleasant in late May."},
+
+  {id:13,name:"Pinakothek der Moderne",emoji:"🎨",cat:"Modern Art Museum · Maxvorstadt",tag:"culture",priceLabel:"€10 / €1 Sundays",free:false,
+  lat:48.1474,lng:11.5723,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFI1X5vKUz04G3JEG4hfwl2Mp6ngcfREhNk7jKddDFLsPJjn5qAJitk3TD9_EWHNRS6ZEhXxNtQQUF8dZ72bApJeM6Yh57dKvEPq_K_iBGsZmdg2D2jlx23OOej8zfhxhkj5N0_kOIiCs0m9w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGVzLw7Q0zQdz9R7Re0Q2wzw6ZXTF8Evdr3YAhnfCR6YfrdTpEAsyhCjtr066A4Blvi3j1KSxOZ06VL6OnS-W1JMix34Oea0WdCQjipItb4eFBZGXT3aRz9tY29jFmyO7fcVPIw8imJSlHovW8=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGeGbw4NcgrX5ay1__BN_bD7-OX4Pv0s6FVJLn9IdA___pC2g4ZG8jlp7bbjOzGuP0KxO4rTQPEhfX1gO9wwpXZEIbPyvDEAp4uAaj2KEJ97FlODcciIDcFp0OljJ82kcbeiZqINCiaw_45fQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGSQlOZ4XUn3o5aQ2gDo5CNumxhXKWiwtfXt_LwySOLIuRsvxS7-uB-UIU58YdfIew0XPhx_UhyOMUG7Ix05HfNFCnPPt1L7wwVFOzbO2X8JhT_m9NO22MCSCGeVdS90MOsUF-W5_kesxRHLQ=s800-w800-h500"],
+  desc:"Germany's largest museum for modern art, design and architecture under one roof. Four world-class collections: 20th–21st century fine art (Picasso, Dalí, de Kooning), graphic arts, applied design, and architecture. The light-filled rotunda alone is reason enough to visit.",
+  distance:"2 km from Marienplatz — 25-minute walk or short U-Bahn",transport:"U-Bahn U2 to Königsplatz or Theresienstrasse, then 10-minute walk",cost:"Adults: ~€10 · Sundays: €1 (all collections!)",time:"2–3 hours",
+  tip:"Visit on a Sunday when admission drops to just €1 — remarkable value.",may:"The museum district is lovely on foot in late May. The €1 Sunday deal is exceptional."},
+
+  {id:14,name:"Asamkirche (Asam Church)",emoji:"⛪",cat:"Late Baroque & Rococo Church · City Centre",tag:"church",priceLabel:"Free",free:true,
+  lat:48.1351,lng:11.5697,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHD_KyfDQhYoc7wG_hw03mR5bUnBMDi-cnCWRCtP7_n7Lsf0dBYLin8ceq1_oCusfZwxZbo3A9y-_fzDITxvrm9sVMkHhEu9tqBY4lJyf4RIz5Ro_LdtwP6tVEzJC1zaKoJxEOI5E78oFcO0e_vKxkNRQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH6HRaZJUag8WwdWQTDCVLuMubM9aMb-uplf8iKc3-rAZZgtA6_MwfjSZiyzYO64hzu21zny2yd0VTZfbqP8PERAgVTS0uyU8dFKQY6TAx0hNFM6FIMSJ0X1JduiJw9aS7YJ0MiHKtfk0OMgQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFdjlYhEmyMzH5jaLrNswm6cZEWZIpkFgyLeCAO7LxY2c1P2RTlxiP6LBOr50RihwFWeihU2wyhzy7ea_c_DcvF5TH84Xi4ACOO8RKzfHuYcbk4A6Z-wCm5qvBoEN1BbsqpoLGXjV27D6P2GQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGPVS-F14W-XbTbRIU53cjdDk0Ugk2PkoJes8VCwPoqW8bHQ8bw2pT3pl4obz4vNgXyfo3pips_icIxLIq_hp6h2iXJWWYp5WlR7bkutxFyLvCfR3_RIgDm97frT3tmIik-moEnmYR8RAOysNE=s800-w800-h500"],
+  desc:"A private chapel built by the Asam brothers in 1746, squeezed between townhouses on Sendlinger Strasse. The narrow exterior gives no hint of what's inside — a jaw-dropping explosion of gilded stucco, frescoes and Rococo decoration covering every surface.",
+  distance:"0.6 km from Marienplatz — 8-minute walk southwest",transport:"Walk south from Marienplatz · U-Bahn: Sendlinger Tor (U1/U2/U3/U6)",cost:"Free",time:"20–30 minutes",
+  tip:"Hours can be irregular and it sometimes closes mid-day. Easy add-on while walking between Marienplatz and Sendlinger Tor.",may:"A great mid-morning stop — cool and dark inside when the May heat builds outside."},
+
+  {id:15,name:"Theatine Church (Theatinerkirche)",emoji:"⛪",cat:"Italian Baroque Church · Odeonsplatz",tag:"church",priceLabel:"Free / €2 crypt",free:true,
+  lat:48.1421,lng:11.5766,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGIOuSuEiwNWzxotzaMh5OpbqTdXekZ_J71kl-P5BWD5vv-TlztbRG6ekP_IhcvU26cMXfddFLaIltCzFZljuUmLFDRjT48r8gyrycmBkP2LvXBtiY8-Z1t7yc3P_M9puiiaOoePxfl2Fju5A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEA7RiGjnHCADK7vXjqa6-R5T35-pUHom9UlqWb1IBAzl7Gd9NkXB_YAxfCcqXEay1a5xIKnSMrI7XzWA59ww6bsYRpYiBB67iTN62esE7JwFuIux59mlpmaRjFlD5TPPQ4y18kBb6XfvfEwbg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEyeQWS9Qq0138tQVCldnHLMaJeCtwgPWfQP9l0zJADiQ0G5Bt4L0E3KuaTLUiKeHYm24OGh8Zop8iQuYuxtWqYPcSp5_sjJbSsOJ7HMfxFf5ZGM8jz2fgzrgFkhG54s2_BSTI26HdQqhQJF4wAdexvwg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFo2-JMzTDNT6iB818GuyI6f3vtefp8er6irQsF5YaEBerkXy1h-4IM2XVF8cfXGqQZlPjRXhjzFs_kw4KdfgnW4E7HPnrqzByVu8n6eWwIRZtOXf071D5ppXJdG5dXesalXkvIabs4QWbO=s800-w800-h500"],
+  desc:"Built in 1675 to mark the birth of the Bavarian crown prince, this striking ochre-yellow church is one of the finest Italian Baroque buildings north of the Alps. The brilliant white stucco interior — soaring vaults, ornate cupola and hushed grandeur — is a serene contrast to busy Odeonsplatz outside.",
+  distance:"1 km from Marienplatz — 12-minute walk north",transport:"U-Bahn: Odeonsplatz (U3/U6) · walk north from Marienplatz",cost:"Church: Free · Crypt: ~€2",time:"20–30 minutes",
+  tip:"Finding the entrance can be tricky — try the far-right door facing the street.",may:"The yellow facade pops beautifully in spring sunshine. The Hofgarten next door is in full bloom."},
+
+  {id:16,name:"St. Peter's Church (Peterskirche)",emoji:"🔔",cat:"Munich's Oldest Parish Church · Marienplatz",tag:"church",priceLabel:"Free / €5 tower",free:true,
+  lat:48.1367,lng:11.5756,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEIwS2PF5j0hFEH4Zm4Z-8d4p8RYI_elZqlkv1XakWzmVDClAA9UF7I97m9cqrAgy-QMhRS9VfsfO96MDfob_2iOFTnSwOVpMBe2qhudZZZ8zYKJB5_-uB7UdBsS3ZUCJcO9m3IsHZ8uVou_w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFZMfo3fyD4kke1U-YOcJTMWwv60RLwcVg3EkznamBqvjsHTVjdUdjXFXwXFXdLR617cLK0lijxgEJ1kx6XwhJyU0iWzQ4dVxoViO-Dd-NEqynpaJprozrLdIf99kQwnA-qJb1SnnzNXsNcVEA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHj1poxfmnquSf2n1Vwy_mTJRWdvOcXO19C6OcBpwf9CIyZ-iEFMq8i8le-deFB4bMetDl_gFluNC6TW5CqdlIWFpJgJVKxGkBaUGNX58NfdAWQud3oNI1eJlAUdmXRRFMLqxnST-kM3HfFOg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHbLqMZZx81X849dW2qzwYqwlRHK2M3Cy46jztwEb2OcDLj2HGvAYBkEPjU5eCwLyF06lOxSnMV102P7p0qYYHGEBj0LuIFX4Hr1ZyGgEEf-ME2zZ0d-7Ynt2ultGL5PIlvWxQnXM6Qex_GzJk=s800-w800-h500"],
+  desc:"Munich's oldest parish church, affectionately known as 'Alter Peter', stands just steps from Marienplatz. The real draw is the 306-step tower climb — giving arguably the best 360° rooftop view in Munich, looking straight down onto the Rathaus and Viktualienmarkt below.",
+  distance:"0.2 km from Marienplatz — 2-minute walk south",transport:"Walk from Marienplatz · U/S-Bahn: Marienplatz",cost:"Church: Free · Tower: ~€5",time:"30–45 minutes",
+  tip:"The tower staircase is narrow — go early or late to avoid bottlenecks. The view is arguably better than the Frauenkirche tower.",may:"Clear late-spring skies make the tower climb especially rewarding."},
+
+  {id:17,name:"St. Michael's Church (Michaelskirche)",emoji:"✝️",cat:"Renaissance Jesuit Church · Neuhauser Strasse",tag:"church",priceLabel:"Free / €2 crypt",free:true,
+  lat:48.1387,lng:11.5703,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGExLlmU3LSBYhZ9w4Du6898rugUOY2HKaH1zweQqGF5LCaDssb6Koz_qrrleHPheDMNv6gZQsrbH9MPYxG6MYaAGvtS8nhqA5YYXzB2-Rx0ULRC6KMzMBoDH2bRbFLjMRCZLOpGzt5MPadqN4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHg_mvjLgqaxffcxw--Wmg-g6l19tE12mVJ9lSxTswh86MahESgJjKxEh6dkEc49a0xxHMfCH8kswNeeT8DzUV4Z5Q8gpHPgfbdX8u-G51K4R-eQV752JR3NXiicH1xx6Gx5wOANfJWIq_kaw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH9ZcQIZz4eH3OFY3ckRxJyICj6GeiSeIyxUSZMYfqpmrgZYTyZT2FvHVZUlvG0JfRQjO_BvYn6LKO2KzJrKn5lnl0HvnkQGyUw9dgVBwg6CxnvtRycaVjVhN3PzTk4T0DwdAuRrgm65Um6VA8=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFHbv0xbKzGhlsX94hddDxHo6CcbrtlFr1QcKyG53SuPSz1ltJBb1qMwhGoBhKs33OK5qGaEzMWAlPF2dWHfpBxiB_6ru0GLsEv5jqeyig4j7QfK7E7E8eXz81dSw_OCwiAcVgY17kJt_tJKn4=s800-w800-h500"],
+  desc:"The largest Renaissance church north of the Alps, built by the Jesuits in 1597 with a barrel-vaulted nave of extraordinary scale. The crypt below holds the remains of King Ludwig II of Bavaria — the eccentric 'Dream King' behind Neuschwanstein.",
+  distance:"0.5 km from Marienplatz — 7-minute walk west",transport:"Walk west along Kaufingerstrasse/Neuhauser Str. · U-Bahn: Karlsplatz (U1/U2)",cost:"Church: Free · Royal Crypt: ~€2",time:"20–30 minutes",
+  tip:"The royal crypt is a must if visiting Neuschwanstein — seeing Ludwig II's tomb adds a personal dimension to his story.",may:"A cool retreat on a warm May afternoon. Right on Munich's main pedestrian shopping street."},
+
+  {id:18,name:"New Town Hall (Neues Rathaus)",emoji:"🏛️",cat:"Neo-Gothic Landmark & Glockenspiel · Marienplatz",tag:"city",priceLabel:"Free / €6 tower",free:true,
+  lat:48.1374,lng:11.5761,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFEBUaXUf6JeaBrEZxkdTvnyjb8TuDYs_K1GPLlOyDL8zAMVKJZrN_11u0KGNtuifidZqUbGzPhiChDrVdInluUXv0DQuNb_g-DNWdwX3ADAAWlKYjY5ShPBziWZnNTbIKkV1qMmWmGVvxeZJY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHpuGZjMnHzVbnuhWE54xRT1XlaEsuFfCaj7wRslzO5fDcQ9cVNrTEg09Zsvrw_TJUqusVeF9L5nDWfC5ytRWDjPQFFOVYvnFvO-hXiQ7F8W9elVAXoR0aESzT5IyQlopZO1uGXgOjcZpnWzw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHzicHzRE645fCQWKxdQlld5j8ycHOaDMF_-F22vfPXuy0aKhmGut_KgM3t8ru3UbWhZPOSD2AAJP2g0bR8PP3CreSlalzmaAer9IcEZgs1Ob1onv6lPqKQgSMefxbXb17-2cdShj-vY2BJNto=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHf1pGAHRyM4qX8FdhRjsAVfh9sLwJLbJPotpY8QAr7VvJBPKTR1Wsi0wz4b9zRnxy0IzLFoFSU_yP84fR0xcanhy5McmLn_c0_iX9KP1wwB-dTmL1MqR1Bj1s3VMUQ0erATesrkSqNqNS1ZQ=s800-w800-h500"],
+  desc:"The dramatic Neo-Gothic centrepiece of Marienplatz, built between 1867 and 1908 with an 85-metre tower housing Munich's famous Glockenspiel — 43 bells and 32 life-sized figures re-enacting two Bavarian stories from 1568.",
+  distance:"City centre — Marienplatz",transport:"U/S-Bahn: Marienplatz (U3/U6, S1–S8)",cost:"Glockenspiel: Free from the square · Tower lift: ~€6",time:"30–45 minutes",
+  tip:"Glockenspiel performs at 11am and 12pm daily (also 5pm May–October). Arrive 5 minutes early for a good spot.",may:"The 5pm Glockenspiel in late May is lovely in the evening light. The square fills with outdoor café tables afterwards."},
+
+  {id:19,name:"Walchensee, Kochelsee & Herzogstand Hike",emoji:"🏔️",cat:"Alpine Lakes & Summit Hike · Day Trip · Bavarian Alps",tag:"daytrip",priceLabel:"Free lakes / €20 cable car",free:true,
+  lat:47.5922,lng:11.3463,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHog4wNYIbNfBw6VsrOcMZbEXP5cYOH1L62rNaKcK9XMRk9QnIhJxst-OeZHoiDECt8hhg-48q4xtC3Ja3FXrmKsbGXsaWRx38HErH56h-VYZ_Gh2ZNYD4hcTV61vXkKhYXVZ7BC8pmEONUhy5M0jYC=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFMdcNGbdpyydkUKGSvjQ2qCjqDrgIe338d7w1KkldMmgticdsw598Cj17z0GgeElOmQuR5lxSkiMm8xHl5d9BgZfOG9LJi78w3E1h_yVVqlpHzWe-vp3PQIS3TQ4I2JUZDv30OVapBfg2huB0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFqFf1Tz3bUuA-Eqao768bBVgSiNbiurOpHZB5DA_r328hrLcu4AYsEGrxYndcKfy28o71an9Hw4nErrkjSTwnrgFOPA6qqz58TN6FN7JdgAt_qiF25zZx49Ixwr8bwbIYll1ZlxXX5ZSoZMQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH4EIoc0ZixunCoBLWt3T1oRRQ9vm91823ofhkhjVoU2IGd-6t1tsYvVi3mjQ45ns4MMBjnrwbiQH_PNloHfJVbc88irFwVQ_TQNnsPfcEWq2yjQQRUW_1gvJO-TFrMu_RqsgTuNxuwkPuaGQ0=s800-w800-h500"],
+  desc:"Two of Bavaria's most beautiful Alpine lakes paired with one of its finest accessible summit hikes. Walchensee is a deep turquoise mountain lake at 800m, strikingly clear. Between them rises the Herzogstand (1,731m) — rewarded with panoramic views of six lakes and on clear days all the way to Munich.",
+  distance:"75 km south of Munich — ~1 hour by car or ~1.5 hours by train",transport:"Train: Munich HBF → Kochel (~1.5 hrs). By car: A95 south. Cable car: ~€20 return.",cost:"Lakes: Free · Herzogstandbahn cable car: ~€20 return",time:"Full day · Hike: 2.5 hrs up / 2 hrs down",
+  tip:"Take the cable car up and hike down for the best experience. The Berggasthaus at the summit serves hearty Bavarian food.",may:"One of the best times to visit — wildflowers in bloom, snow still capping higher peaks, lakes at their clearest."}
+];
+
+// ── SLIDESHOW STATE ───────────────────────────────────────────────────────────
+const ssState = {};
+P.forEach(p => ssState[p.id] = { cur: 0, total: p.photos.length });
+
+function goSlide(id, idx) {
+  const ss = document.getElementById('ss-' + id);
+  if (!ss) return;
+  const slides = ss.querySelectorAll('.slide');
+  const dots = ss.querySelectorAll('.dot');
+  slides[ssState[id].cur].classList.remove('active');
+  dots[ssState[id].cur] && dots[ssState[id].cur].classList.remove('active');
+  ssState[id].cur = idx;
+  slides[idx].classList.add('active');
+  dots[idx] && dots[idx].classList.add('active');
+}
+function changeSlide(id, dir) {
+  const s = ssState[id];
+  goSlide(id, (s.cur + dir + s.total) % s.total);
+}
+
+// ── DETAILS TOGGLE ────────────────────────────────────────────────────────────
+function toggleDetails(id) {
+  const btn = document.getElementById('dtbtn-' + id);
+  const body = document.getElementById('dtbody-' + id);
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('.arrow').textContent = open ? '▲' : '▼';
+  btn.querySelector('.label').textContent = open ? 'Less details' : 'More details';
+}
+
+// ── PRICE BADGE ───────────────────────────────────────────────────────────────
+function priceBadge(p) {
+  const isFree = p.priceLabel.startsWith('Free') && !p.priceLabel.includes('/');
+  const color = isFree ? '#7de0a0' : '#fff';
+  return `<span style="color:${color}">${p.priceLabel}</span>`;
+}
+
+// ── RENDER CARDS ──────────────────────────────────────────────────────────────
+const grid = document.getElementById('places-grid');
+P.forEach(p => {
+  const isDay = p.tag === 'daytrip';
+  const slides = p.photos.map((url, i) =>
+    `<div class="slide${i === 0 ? ' active' : ''}"><img src="${url}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.style.display='none'"></div>`
+  ).join('');
+  const dots = p.photos.map((_, i) =>
+    `<span class="dot${i === 0 ? ' active' : ''}" onclick="goSlide(${p.id},${i})"></span>`
+  ).join('');
+
+  const card = document.createElement('div');
+  card.className = 'place-card';
+  card.dataset.tag = p.tag;
+  card.dataset.free = p.free ? 'true' : 'false';
+  card.id = 'card-' + p.id;
+  card.innerHTML = `
+    <div style="position:relative">
+      <div class="slideshow" id="ss-${p.id}">
+        ${slides}
+        ${p.photos.length > 1 ? `
+        <button class="slide-btn slide-prev" onclick="changeSlide(${p.id},-1)">&#8249;</button>
+        <button class="slide-btn slide-next" onclick="changeSlide(${p.id},1)">&#8250;</button>
+        <div class="slide-dots">${dots}</div>` : ''}
+      </div>
+      <span class="cat-badge${isDay ? ' daytrip-badge' : ''}">${isDay ? '🚌 Day Trip' : p.cat.split('·')[0].trim()}</span>
+      <div class="price-badge">${priceBadge(p)}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">${p.emoji} ${p.name}</div><div class="card-hint">🗺️ Click card to locate on map</div>
+      <div class="card-category">${p.cat}</div>
+      <div class="card-desc">${p.desc}</div>
+      <button class="details-toggle" id="dtbtn-${p.id}" onclick="toggleDetails(${p.id})">
+        <span class="label">More details</span> <span class="arrow">▼</span>
+      </button>
+      <div class="details-body" id="dtbody-${p.id}">
+        <div class="info-row"><span class="info-label">📍 Distance</span><span class="info-value">${p.distance}</span></div>
+        <div class="info-row"><span class="info-label">🚇 Getting There</span><span class="info-value">${p.transport}</span></div>
+        <div class="info-row"><span class="info-label">💶 Entry</span><span class="info-value">${p.cost}</span></div>
+        <div class="info-row"><span class="info-label">🕒 Time</span><span class="info-value">${p.time}</span></div>
+        <div class="info-row tip"><span class="info-label">💡 Tip</span><span class="info-value">${p.tip}</span></div>
+        <div class="info-row may"><span class="info-label">🌸 Late May</span><span class="info-value">${p.may}</span></div>
+      </div>
+    </div>`;
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', function(e) {
+    // Don't trigger if clicking slideshow buttons, dots, or toggle
+    if (e.target.closest('.slide-btn') || e.target.closest('.dot') || e.target.closest('.details-toggle') || e.target.closest('a')) return;
+    map.flyTo([p.lat, p.lng], 15, {duration: 1.0});
+    setTimeout(() => markers[p.id].openPopup(), 1100);
+    document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+    card.classList.add('highlighted');
+    setTimeout(() => card.classList.remove('highlighted'), 2500);
+  });
+  grid.appendChild(card);
+});
+
+// ── LEAFLET MAP ───────────────────────────────────────────────────────────────
+const map = L.map('map').setView([48.137, 11.575], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+}).addTo(map);
+
+const tagColors = { city: '#1B3A6B', culture: '#8B4513', church: '#6B0000', daytrip: '#1a4a1a' };
+const markers = {};
+
+P.forEach(p => {
+  const color = tagColors[p.tag] || '#1B3A6B';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:${color};color:#fff;border:2.5px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:pointer">${p.emoji}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20]
+  });
+  const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+  m.bindPopup(`
+    <div style="font-family:sans-serif;min-width:190px">
+      <strong style="font-size:.92rem">${p.emoji} ${p.name}</strong><br>
+      <span style="font-size:.78rem;color:#666;font-style:italic">${p.cat}</span><br>
+      <span style="font-size:.78rem;color:#555;margin-top:2px;display:block">${p.priceLabel}</span>
+      <a href="#card-${p.id}" onclick="scrollToCard(${p.id})" style="display:inline-block;margin-top:6px;font-size:.78rem;color:#1B3A6B;font-weight:600;text-decoration:none;border:1px solid #D6E4F7;padding:3px 9px;border-radius:5px">View card ↓</a>
+    </div>`);
+  m.on('click', () => scrollToCard(p.id));
+  markers[p.id] = m;
+});
+
+function scrollToCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  const panel = document.getElementById('cards-panel');
+  panel.scrollTo({ top: card.offsetTop - panel.offsetTop - 10, behavior: 'smooth' });
+  // highlight
+  document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+  card.classList.add('highlighted');
+  setTimeout(() => card.classList.remove('highlighted'), 2500);
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function filterCards(tag, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let count = 0;
+  document.querySelectorAll('.place-card').forEach(c => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'free') show = c.dataset.free === 'true';
+    else show = c.dataset.tag === tag;
+    c.classList.toggle('hidden', !show);
+    if (show) count++;
+  });
+  document.getElementById('count-badge').textContent = count + ' place' + (count === 1 ? '' : 's');
+  P.forEach(p => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'free') show = p.free === true;
+    else show = p.tag === tag;
+    if (show) { if (!map.hasLayer(markers[p.id])) markers[p.id].addTo(map); }
+    else { if (map.hasLayer(markers[p.id])) markers[p.id].remove(); }
+  });
+}
+</script>
+</body>
+</html>

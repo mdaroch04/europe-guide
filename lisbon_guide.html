@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lisbon Travel Guide</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ter:#1A5F6B;--ter-mid:#247A89;--ter-light:#C8E8ED;
+  --gold:#C9961A;--gold-light:#FDF3D8;
+  --cream:#FAF8F3;--white:#fff;
+  --text:#1A1A1A;--text-mid:#555;--text-light:#888;
+  --border:#E0DDD6;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Source Sans 3',sans-serif;
+  --header-h:64px;--filter-h:50px;
+}
+.header-inner{display:flex;align-items:center}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--cream);color:var(--text);font-size:14px}
+.site-header{height:var(--header-h);background:var(--ter);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;position:relative;z-index:200}
+.site-header h1{font-family:var(--serif);font-size:1.45rem;color:#fff;font-weight:700;white-space:nowrap}
+.site-header p{color:#a8dde4;font-size:.78rem;margin-left:14px;display:flex;gap:10px;flex-wrap:wrap}
+.back-btn{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:var(--sans);font-size:.75rem;font-weight:600;padding:6px 14px;border-radius:20px;text-decoration:none;transition:background .18s;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.22)}
+.header-tag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#c8eef2;font-size:.72rem;padding:3px 10px;border-radius:20px}
+.filter-bar{height:var(--filter-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px;position:relative;z-index:150;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.filter-label{font-size:.72rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;white-space:nowrap}
+.filter-btn{background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);font-size:.76rem;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--sans);transition:all .18s;white-space:nowrap}
+.filter-btn:hover,.filter-btn.active{background:var(--ter);border-color:var(--ter);color:#fff}
+.count-badge{background:var(--ter-light);color:var(--ter);font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:10px;margin-left:auto;white-space:nowrap}
+.layout{display:flex;height:calc(100vh - var(--header-h) - var(--filter-h));overflow:hidden}
+.map-panel{width:42%;flex-shrink:0;position:relative;border-right:3px solid var(--gold)}
+#map{width:100%;height:100%}
+.cards-panel{flex:1;overflow-y:auto;padding:16px;background:var(--cream)}
+.cards-panel::-webkit-scrollbar{width:6px}
+.cards-panel::-webkit-scrollbar-track{background:#f0ede6}
+.cards-panel::-webkit-scrollbar-thumb{background:#c0bbb0;border-radius:3px}
+.places-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.place-card{background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
+.place-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.place-card.hidden{display:none}
+.place-card.highlighted{outline:3px solid var(--gold);outline-offset:0}
+.slideshow{position:relative;height:190px;overflow:hidden;background:var(--ter);flex-shrink:0}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .4s ease}
+.slide.active{opacity:1}
+.slide img{width:100%;height:100%;object-fit:cover;display:block}
+.slide-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.42);backdrop-filter:blur(3px);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .18s;line-height:1}
+.slide-btn:hover{background:rgba(0,0,0,.7)}
+.slide-prev{left:7px}.slide-next{right:7px}
+.slide-dots{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:10}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45);cursor:pointer;transition:background .18s}
+.dot.active{background:#fff}
+.cat-badge{position:absolute;top:9px;left:9px;background:rgba(26,95,107,.82);backdrop-filter:blur(4px);color:#c8eef2;font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:14px;text-transform:uppercase;letter-spacing:.05em;z-index:10}
+.daytrip-badge{background:rgba(201,150,26,.88);color:#fff}
+.price-badge{position:absolute;bottom:26px;right:8px;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);color:#fff;font-size:.72rem;font-weight:600;padding:4px 8px;border-radius:7px;z-index:10}
+.price-free{color:#7de0a0}
+.card-body{padding:12px 14px;display:flex;flex-direction:column;flex:1}
+.card-title{font-family:var(--serif);font-size:1.15rem;font-weight:800;color:var(--ter);margin-bottom:1px;line-height:1.25}
+.card-hint{font-size:.65rem;color:var(--text-light);margin-bottom:1px}
+.card-category{font-size:.72rem;color:var(--text-light);margin-bottom:8px;font-style:italic}
+.card-desc{font-size:.95rem;color:var(--text-mid);line-height:1.6;margin-bottom:10px}
+.details-toggle{display:flex;align-items:center;gap:6px;background:none;border:1.5px solid var(--ter-light);color:var(--ter-mid);font-size:.75rem;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:var(--sans);transition:all .18s;width:100%;justify-content:center;margin-top:auto}
+.details-toggle:hover{background:var(--ter);color:#fff;border-color:var(--ter)}
+.details-toggle .arrow{transition:transform .25s;display:inline-block}
+.details-toggle.open .arrow{transform:rotate(180deg)}
+.details-body{display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px}
+.details-body.open{display:block}
+.info-row{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid #F0EDE6;padding:5px 0;gap:4px}
+.info-row:last-child{border-bottom:none;padding-bottom:0}
+.info-label{font-size:.68rem;font-weight:600;color:var(--ter);text-transform:uppercase;letter-spacing:.04em;padding-top:1px;line-height:1.4}
+.info-value{font-size:.76rem;color:var(--text);line-height:1.45}
+.info-row.tip{background:var(--gold-light);border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.tip .info-label{color:var(--gold)}
+.info-row.may{background:#EDF7ED;border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.may .info-label{color:#2E6B3E}
+.map-legend{position:absolute;bottom:12px;left:10px;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.72rem;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.legend-item:last-child{margin-bottom:0}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0}
+@media(max-width:900px){html,body{overflow:auto;height:auto}.layout{flex-direction:column;height:auto;overflow:visible}.map-panel{width:100%;height:320px;border-right:none;border-bottom:3px solid var(--gold)}.places-grid{grid-template-columns:1fr}.site-header p{display:none}.card-hint{display:none}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <h1>🇵🇹 Lisbon Travel Guide</h1>
+    <p>
+      <span class="header-tag">🌸 Late May tips</span>
+      <span class="header-tag">📸 Photo slideshow</span>
+      <span class="header-tag">📍 29 places</span>
+    </p>
+  </div>
+  <a class="back-btn" href="index.html">← Back to all cities</a>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="filterCards('all',this)">All Places</button>
+  <button class="filter-btn" onclick="filterCards('landmark',this)">Landmarks &amp; Neighbourhoods</button>
+  <button class="filter-btn" onclick="filterCards('viewpoint',this)">Viewpoints</button>
+  <button class="filter-btn" onclick="filterCards('experience',this)">Experiences</button>
+  <button class="filter-btn" onclick="filterCards('outdoor',this)">Outdoor</button>
+  <button class="filter-btn" onclick="filterCards('sintra',this)">🏰 Sintra</button>
+  <button class="filter-btn" onclick="filterCards('daytrip',this)">Day Trips</button>
+  <button class="filter-btn" onclick="filterCards('free',this)">🆓 Free Entry</button>
+  <span class="count-badge" id="count-badge">29 places</span>
+</div>
+
+<div class="layout">
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1A5F6B"></div> Landmarks &amp; Neighbourhoods</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4A6B8A"></div> Viewpoints</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#5C3317"></div> Experiences</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2E6B3E"></div> Outdoor</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7B3F00"></div> Sintra Sites</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a4a1a"></div> Day Trips</div>
+    </div>
+  </div>
+  <div class="cards-panel" id="cards-panel">
+    <div class="places-grid" id="places-grid"></div>
+    <div style="text-align:center;padding:16px 0 6px;font-size:.75rem;color:var(--text-light)">Lisbon Travel Guide · Entry prices approximate 2024/25 · Boa viagem! 🇵🇹</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const P = [
+  {id:1,name:"Alfama & Castelo de São Jorge",emoji:"🏰",cat:"Historic Moorish Quarter · City Centre",tag:"landmark",priceLabel:"Free / €15 castle",free:true,
+  lat:38.7139,lng:-9.1334,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNE9BTx7JRj5bjdoys7VHcmMrF5AnX1NtI3-HhMYTSh8YLK2n0qwFUA6_Z8aC4bcyaoJ_vfr_z6-5bQYGaMm5uhkbJpsBKXbu964bRuMMgYUDK7nQn8eEoEF0OAL2RPHbEBQt9NXBCQ9WjCPLA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHPBUZn-hINGbIcDi9Bsc2uZQ8JNiMFc1Hiz5EhxTtBsvFvbCYvflNlWg_kFKM-9Mygjcx5IA6dGpodvwCQcJ9_pG_xrWdYkcEQ2bMJNJboIqRPOWbil-8XMt3HgQNALIQK6D1Kd0yIkpIDbQQ=s800-w720-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG6koDgJEaF1yvYcFW1138CK24kLxgQLKSMxxdTBZpWNBlzBkPA8qlGrgUdxKVCsWrD0u65aBZjgb819gL1M6zSHpzqOS8g-xwDWHlfEYXS1kcnZ7U_-TebCC4qxqi4evtcXQAeh_BqMNyIbI2n2hNSIA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH0Z00n6KRPm_ixXSCNfGWkgcfRd59EPdYUA3mBas31HK1kZLEbilfX26TJQFgzOfkMwZY19mRU06X_vtEuhvDwNRZHhvKa1_FDdwRWqzmaY8JZU4v5UlxG-lxctHBeh3a71Alz82bxPRTbeA=s800-w800-h500"],
+  desc:"Lisbon's oldest district — a labyrinth of whitewashed lanes and azulejo-tiled walls draped over a hillside that was a Moorish medina before 1147. The Castelo de São Jorge crowns the hill with sweeping views over the Tagus. Unlike most European old towns, Alfama remains genuinely residential.",
+  distance:"City centre — walk or Tram 28E",transport:"Tram 28E to the castle, then walk downhill. Bus 737 from Praça da Figueira.",cost:"Neighbourhood: Free · Castelo de São Jorge: ~€15",time:"Half day",
+  tip:"Walk downhill from the castle rather than up. Avoid Tram 28 between 10am–3pm when it is impossibly crowded. The real Alfama is in the narrow lanes north of the main tourist drag.",may:"Late May evenings are warm enough for fado bars to keep doors open. Santo António festival preparations begin — bunting and sardine grills appear on street corners."},
+
+  {id:2,name:"Belém District",emoji:"⛵",cat:"Historic Riverside Quarter · West Lisbon",tag:"landmark",priceLabel:"Free / €10 Jerónimos / €8 Torre",free:true,
+  lat:38.6971,lng:-9.2059,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNH1oPDLz7fo2eYB5gSy8F9XM9n3HapzYQqcd9s5528TaTgLGS9Gw4BwEvCfkrkRI7afhUppF1VJFDLP8YqRoCxs-HSpiopXNtj7s7xKAM-OX0KhGVrIq38yxQyoFOGWoNEL_b4hRbJYuXEq484LLVXUUQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF7ymWxD0ztbvK27-HjNhKDfGnfWeFrjyPxFsJslbqfy7q-dLbS3eACQu5FSJoTLyHvdAktmlY1uNFMUfamjQ4Fmty_xr1TJ_qGu0pmtiMiFmQTssaQXRhBuCmz-KJn1e6RzKPc6vnJh29i7CvxwdzADA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFlJ6fsmkH9p1Da-yE33LSlUipbqJIm7Kv60LgTnR8xA5_Kw4F8cZ5jt9ee_S0ImX1_L2BmpZujIoNaiUAcHKRJUiDw6jor3NDA5tjCJc_DgsSBfpAIwBPKnsvLOh8ynD8zInY_xK26wy0SDw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOi7-3-SWye5DuhiYlpoVDEMJgRvz70cH4mRhPAHg-JMk_8L2sESPaHa-EPbmcF4-C3EY8xFChVbGJrNJp7ELSSpmxw1fwn1uS5-YN0qe13sxoODIg0aX_DAf0MSmm_ksTNot2jkZKU_ziLQ=s800-w800-h500"],
+  desc:"Where the Age of Discovery set sail. The Mosteiro dos Jerónimos is a stunning example of Manueline architecture — an intricate 300-metre carved limestone facade. The Torre de Belém stands in the Tagus like a stone chess piece. Home of the original Pastéis de Belém since 1837.",
+  distance:"6 km west · 30 min by Tram 15E",transport:"Tram 15E from Praça da Figueira · Bus 728 · Riverside cycle path from central Lisbon (7km flat)",cost:"Riverfront: Free · Jerónimos Monastery: ~€10 · Torre de Belém: ~€8",time:"Half day",
+  tip:"Book Jerónimos tickets online — often sells out by 10am. The cloister is more impressive than the church. Torre de Belém interior is overpriced; the exterior is free and just as good.",may:"Mid-week afternoons have the best light on the monastery stone. Weekends are very busy. The riverside esplanade is at its most pleasant in late-spring weather."},
+
+  {id:3,name:"Mouraria",emoji:"🕌",cat:"Former Moorish Quarter · Below the Castle",tag:"landmark",priceLabel:"Free",free:true,
+  lat:38.7161,lng:-9.1362,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFddi0DhIqQlVRlvT-5JQ6Z9xGCzY25zZdqPAKVKJwZfNAlafG-ZbybWNTlo3l6dF0lab0-a3ZaRMA2ueK0iUbUmiZrS32QbtbMXJ9RpKMFvcbAIqJyZF0yofqXH5XqzZYoNJ2SWeybt6_I2Q=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE9BTx7JRj5bjdoys7VHcmMrF5AnX1NtI3-HhMYTSh8YLK2n0qwFUA6_Z8aC4bcyaoJ_vfr_z6-5bQYGaMm5uhkbJpsBKXbu964bRuMMgYUDK7nQn8eEoEF0OAL2RPHbEBQt9NXBCQ9WjCPLA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG6koDgJEaF1yvYcFW1138CK24kLxgQLKSMxxdTBZpWNBlzBkPA8qlGrgUdxKVCsWrD0u65aBZjgb819gL1M6zSHpzqOS8g-xwDWHlfEYXS1kcnZ7U_-TebCC4qxqi4evtcXQAeh_BqMNyIbI2n2hNSIA=s800-w800-h500"],
+  desc:"The neighbourhood below the castle and birthplace of fado music. Genuinely multicultural — Portuguese, Indian, and Bangladeshi communities overlap around Largo do Intendente. The street art rivals anything in Berlin and the food is some of the city's most affordable.",
+  distance:"0.5 km from Alfama · Metro: Martim Moniz",transport:"Metro Green Line to Martim Moniz · Walk downhill from Alfama",cost:"Free",time:"2–3 hours",
+  tip:"Largo do Intendente has an authentic working-class square and café scene. The Mercado de Fusão runs on weekend evenings with food stalls from a dozen countries. Best visited from 11am onwards.",may:"Santo António preparations make this neighbourhood especially lively — street decorations go up weeks before June 13, filling the air with grilling sardines."},
+
+  {id:4,name:"LX Factory",emoji:"🏭",cat:"Industrial Creative Hub · Alcântara",tag:"landmark",priceLabel:"Free entry / food extra",free:true,
+  lat:38.7031,lng:-9.1773,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGpHhns0hKt42_VU1X6E7UnO_pTgaCaCXXO0TvEWrELMq4JU5h3CUpCXML8ya7MXU5LEuv0DveVWrrsx_-EfVlREgD3ZjsroF_pf_SlUHAMahP-PsCFsHTbATfmW7wRPPuWFN6y_RWlzKUz4w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF0ATzM0pNjE7028x7aAnwTmOQ6CjWzN287JABSVIcHYUrEpJss763Pqu9rCDMF4lo9qicKDi-gDH9BaDJf2ZiDCf08wENMRVVWXGvQ0q4bzGJ3YOS7szh0MW_TFJzpU7FiNJkcoK3AgP7UPA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFFsvwFy0n3hUaEN6p9mtKzetM9P67WgPxQUKyU34jeskeVCuSAC2fUjpPePH4tQpB-JPB4yNnaw58fZkbTL-PVvBOh1u3Rtk4sxk4U_-4_O5mQKO8WNtBa4D0sVUFxaBOlj0u18LXTzV5ZJA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG6-P_s_-4_TL1cN_FC0HPEX9oGGXL0dQ2SGLRMrZyVqN_UcEqmvwpYqg0-Kb5CGRpVtJ-CcSQjr4cO7-DMRLJTcBej6kKitXD6n1go3jYjRBaS-vf0vbOxBx5nlDJnvUm-R9quVasoGEUcaA=s800-w800-h500"],
+  desc:"A 19th-century textile factory turned creative hub — restaurants, an extraordinary bookshop, vintage stores, and music venues under rusting iron roofs. The Sunday market is the highlight: antiques, artisan food, live music, and a predominantly local crowd.",
+  distance:"3 km west · Bus 714 or 727",transport:"Bus 714 or 727 from Cais do Sodré · 15-min walk from Alcântara-Mar train station",cost:"Free entry · Food and drinks extra",time:"2–3 hours (Sunday market 10am–8pm)",
+  tip:"The bookshop Ler Devagar — a former printing hall with suspended bicycles and a mezzanine — is one of the most beautiful independent bookshops in Europe. Worth visiting even without the market.",may:"Late May Sundays are warm and sociable without the August crush. Outdoor food stalls at their best in good weather."},
+
+  {id:5,name:"Museu Nacional do Azulejo",emoji:"🟦",cat:"Tile Museum · Xabregas · East Lisbon",tag:"landmark",priceLabel:"€5 adults / Free under 12",free:false,
+  lat:38.7236,lng:-9.1085,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNE_vm-WX69pDISY1wHl8w4qL_w1BN5t0k6GpbvxiB_AkMLwRcCZMQ7lBqhYcxTS4_PYsBH9qywcnaTpbyw6EvFqFSM3xT18E5tizjpiBxQgv54f9vdn8QC41lScBP91nfERrz7uQYbna00pB2U=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFEVLKpq0xZlKmxvFaPecQxbwqmm-bYKDv0Br3vK5pzEeFVJTfZfXSzPB_xGxhmTI0o39mb6kPLBy2ev6s_Go1u40CKL4h27aGNvo_UMGC68XHWyN80r65kKVJ-YfMUq8nofvbkkPyAoBuR=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGHDt10EFsDfbsRmdO-k_gTMaSv49Y2T46jtq0tD2S_3qZwb71iUW8-1K56B6pRl0FMMAepnJO3U1jU8tvsuqU0keHZTnqMC0kKjDxL673G9bAKtiZ9eE2mjTZtJbZTyJ6UqphH9H_1yLpvwQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEIlpsEh4fJbGUj7zpQM_ZAxV0mB8FTncIs56dt2KyR_e9Z0Ak8NUt6lGD_fpkGyDthCe-ISbANUaYptaONj5AlD_GC2Gp40ivDxdirR0cN_Cgf-H29CfvSdmprHaoUtuTKZVVAjim6sqLOkA=s800-w800-h500"],
+  desc:"500 years of azulejo tile-making in a 16th-century convent. The centrepiece is a 23-metre panoramic tile panel depicting pre-earthquake Lisbon (1755) — a snapshot of a city that no longer exists, rendered in blue and white. One of Europe's most underrated specialist museums.",
+  distance:"3 km east · Bus 794",transport:"Bus 794 from Praça do Comércio · ~25 min ride",cost:"Adults: ~€5 · Under 12: Free · Convent church: Free without ticket",time:"1.5–2 hours",
+  tip:"The Baroque convent church covered floor-to-ceiling in azulejos can be viewed free without a museum ticket. The cloister café is one of the most peaceful spots in Lisbon for a coffee.",may:"A perfect cool retreat on a warm afternoon. Rarely crowded. Combines well with a walk along the Tagus waterfront nearby."},
+
+  {id:6,name:"Miradouro da Graça",emoji:"🌅",cat:"Scenic Viewpoint · Graça Neighbourhood",tag:"viewpoint",priceLabel:"Free",free:true,
+  lat:38.7172,lng:-9.1296,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGDeVbyUjrvABxT14ZjcsBqrHx68E4K841DzVpJ3aGrfd3eiqE8wYbPBnUnuKS7AhG90FZMboG6g6O5s_RCYkfbCJX4UzTFRTYAm1Wu0ybLNvVJIIvid-MkiK4x4vN1FTye9VekW-A-h1Z57qs=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOPY1hcpMghWcSkpfcIEyAv7VRaFuumqP51Hu9s0ycMq7slS_B5SgbM9KzvSOW4D5ivcY2PSbmzarca_P2P8iyDb0rxONjinAd8Tdn3VuVmgw5kTBUDcb_g7jVvIv4yEImDbmhWwLBg8xGig=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHwRHkOta9Wz1fXqdrqOiyKFYQzg-j1-2jajMLRtvzsPH_6e8MQ1JK31pZcm4K34Ggt8YQbM5Sky8-wK4D26PmkeiQ6kS3UnNjUkAVF9fPDMRzDxlLBrafjyEkaVvsEhjJQDzkxxPuTw85mBQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGzNYhZYnSBAh8bYnHsvrPJV4giulI86Bd65jKxhOaR90e2vUw6043RNrqYOMMzClEPzN_4jXdZJ7QGIydVjW7DjWIdsjBLWlHhOxGttIf77CxD_C5Z81H6E_4JgJdhDZ9fMtaweruWUYgNCQ=s800-w800-h500"],
+  desc:"The locals' favourite viewpoint — a 180° panorama taking in the castle, the 25 de Abril Bridge, and the full sweep of the Tagus. Less overrun than other miradouros. The terrace kiosk sells wine by the glass for €2.50.",
+  distance:"1 km from Alfama · Bus 734 or uphill walk",transport:"Bus 734 from Martim Moniz · Walk uphill from Alfama (15 min)",cost:"Free",time:"30–45 minutes",
+  tip:"Arrive by 8pm to claim a bench for sunset (around 9pm in late May). No tuk-tuks or selfie-stick vendors — the crowd here is mostly locals.",may:"Golden hour falls around 8:30pm in late May. The light across the Tagus from this direction is extraordinary. One of the best free experiences in Lisbon."},
+
+  {id:7,name:"Miradouro de Santa Catarina",emoji:"🗿",cat:"Scenic Viewpoint (Adamastor) · Bica",tag:"viewpoint",priceLabel:"Free",free:true,
+  lat:38.7085,lng:-9.1487,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHvWjG31fa2Dw8uDzw8Jk3DlvhfQ42tHI70rdGrQ_6QX7XMz9LijT3vbeyo3e3q6XfakQ4IfwuvwnxmL270lJ_ZttBKZFEKJLfgVkkUVB0RrQj31kjnpmz0z_w2GOLBcuyRvUoL_nFTNWc0QAI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEuqObHAhQmXE0NlNYYl83353sYih6YntY6cg-A5JXgVKs-m5jMypazJSOmqz6ksfOEGUnsR8A73jeg230KDFlWQS48sgETnV4StGdF6Qks4cD-TDrjRaqr-Wlf3_GMWEwav_WZrW3KiwD__w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHpcaa_TV5PpznGi3I_xyJMkqfSL9scO007yO2EyXhqOHSLquEqSUR6fjSgIqH9zNQvJ4Ax7vQ2AQose543wrH5rYhRCOdStcYAVNWHr_vdBIIZdf6hJGKN9v4N40_TJLyvj-utu_dnB6YH1Q=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGmpZdXVhDWCyvoCDgGzIpjR1LgFXSoir36uS_FnX73qEvwh0TuGYEkqS5YOHpVONzI9rYUZwv59dYQDI_EyjHpt93w3Nl0p9b4wJ845w7AW3LcG5eNK2wACG_FfWBNeqGh0lLwJHTnMn4P3vE=s800-w800-h500"],
+  desc:"A west-facing terrace over the river mouth and the 25 de Abril Bridge, presided over by the mythological Adamastor statue. The most bohemian viewpoint in the city — musicians, students, and older locals gather here for afternoon and evening light.",
+  distance:"Bica/Bairro Alto area · Walk or Bica Funicular",transport:"Bica Funicular (€4) from Rua de São Paulo · 10-min walk from Chiado",cost:"Free · Bica Funicular: €4 (covered by Viva Viagem 24hr pass)",time:"30–60 minutes",
+  tip:"The Bica Funicular is worth riding for the experience alone — 3 minutes through the Bairro Alto neighbourhood. Best miradouro in the city for watching the sun set over the Tagus.",may:"Sunset here at around 9pm is one of the defining Lisbon experiences. The terrace fills from 7pm — arrive slightly earlier."},
+
+  {id:8,name:"Miradouro do Parque Eduardo VII",emoji:"🌿",cat:"Scenic Viewpoint · City Centre",tag:"viewpoint",priceLabel:"Free / €3.50 greenhouses",free:true,
+  lat:38.7253,lng:-9.1525,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNESXUpiPip1lY78dRMqjP734j0ma4Ule8Zko9FyLs_vM4Yssegan6YuLSSckGKM6Jo-GPNSuSnxRXLqiqYkZzHO8rUTEHpIWkuRWDU3nCzlyvq3btyhmpYXn9d-fx2UuHD5fKaE3XuMpbQkUgI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFbT6qvf8y_u4vKIXvCe3HqnvgzlqZ0YnK6bf2va6xSPiplNQbyfv7Gz7j5Q3_vf6hk7k68Idd5nH_IWB9uh5hyJ7Cseji9M6O0zw2KESyZxxVBmhuVDusSfKAaUAg6T32_0eimBeA0gyObWlo=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGZgMWQmE6z1gs1BfEdl6V9oGB0EcDpc7v8LMWcCm_ful0gVjdD2Rh6QiiiEIjWOcDKo4nlcLmQxXy2VlfC1jVl7vW2cGV-c5c28ENq_ECj11NNypZX7HUdYoYAqk-P6ZDQ5kSFDpH6lLOFFLw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH1Y1mFURMfmvxom0jYUvB1nx69h6QvmMsW7NMqiJ7ZFTPFLycnMIXaBxJQvR4953sWLCk-EVKO7HcCn2CmoXWjjdLRj_9KFAWwsh3wzJmTfwKUaz3cxLrww9qkqhl9T8_Ym_enYP4KZ-BOExfhinxC=s800-w800-h500"],
+  desc:"The top of Lisbon's main formal park frames one of the city's best-composed views — the Avenida da Liberdade running dead-straight down to the Tagus, with the castle visible on the hill. The Estufa Fria greenhouses inside the park are a hidden gem: tropical plants in a shaded ravine.",
+  distance:"City centre · Metro: Marquês de Pombal or Parque",transport:"Metro Blue/Yellow Line to Marquês de Pombal or Parque",cost:"Park: Free · Estufa Fria greenhouses: ~€3.50",time:"20–30 minutes",
+  tip:"The Estufa Fria (€3.50) is a canyon of ferns, palms, and lily ponds under a slatted shade structure — one of Lisbon's most photogenic and least-known spots. The rose garden is directly below.",may:"The rose garden is in full bloom in late May. Peaceful on weekday mornings before the tourist coaches arrive."},
+
+  {id:9,name:"Fado ao Vivo (Live Fado)",emoji:"🎵",cat:"UNESCO Music Experience · Alfama & Mouraria",tag:"experience",priceLabel:"€10–25 cover",free:false,
+  lat:38.7104,lng:-9.1359,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNE9BTx7JRj5bjdoys7VHcmMrF5AnX1NtI3-HhMYTSh8YLK2n0qwFUA6_Z8aC4bcyaoJ_vfr_z6-5bQYGaMm5uhkbJpsBKXbu964bRuMMgYUDK7nQn8eEoEF0OAL2RPHbEBQt9NXBCQ9WjCPLA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHPBUZn-hINGbIcDi9Bsc2uZQ8JNiMFc1Hiz5EhxTtBsvFvbCYvflNlWg_kFKM-9Mygjcx5IA6dGpodvwCQcJ9_pG_xrWdYkcEQ2bMJNJboIqRPOWbil-8XMt3HgQNALIQK6D1Kd0yIkpIDbQQ=s800-w720-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG6koDgJEaF1yvYcFW1138CK24kLxgQLKSMxxdTBZpWNBlzBkPA8qlGrgUdxKVCsWrD0u65aBZjgb819gL1M6zSHpzqOS8g-xwDWHlfEYXS1kcnZ7U_-TebCC4qxqi4evtcXQAeh_BqMNyIbI2n2hNSIA=s800-w800-h500"],
+  desc:"Portugal's UNESCO-listed national music — mournful and intimate, built on saudade (the untranslatable concept of longing). The genuine article is a guitarist, a bassist, and a singer in a room of 30 people. Avoid anything with a set-menu price and minimum spend.",
+  distance:"Alfama and Mouraria · Evening shows from 8–9pm",transport:"Tram 28E or walk from city centre",cost:"€10–25 cover charge (often includes a drink)",time:"2–3 hours",
+  tip:"Best authentic venues: Tasca do Chico (Mouraria, max 20 people — book weeks ahead), Mesa de Frades (Alfama, in a former chapel), and Zé da Viola (Mouraria, more low-key). Arrive early and plan to stay.",may:"Warm May evenings make the walk to these venues feel festive. The Santo António energy in Mouraria adds to the atmosphere."},
+
+  {id:10,name:"Vintage Trams & Funiculars",emoji:"🚋",cat:"Iconic City Transport · City-wide",tag:"experience",priceLabel:"€4 / covered by Viva Viagem pass",free:false,
+  lat:38.7096,lng:-9.1404,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNF4FF_U6lL1h23pxzeA3jKANbz1AtchHhzRbOmiZyLp6MPM1PttWzXB7gWNpm2VBQ0LaKnrQhfK7o9047V7d2o8i1YhejJdBqfySfK8LRUMWaLyV33m07QImni4u0aLV0pqEi2zBMcssGM0_Q=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGAh7vJncdAAYRAPZpGsChOZUpzv4Cfj2JDMKssjAXG9Z-5T3G5GtUBvHHQWc6BsncpqBaF4cyaK1wqrQ29HEWstYSsXWV0wblB8e5sbYNliQlOiS-WcIONMvETBNLHHPEQujRutvCMWebw8A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGLJ7myUSn8FOvG7MjU4kZKwMybXmqQzMCMCgPOJoKYnrIUcJhGfqXAJwsXfMpLst2S3rTQXQXsrw18gC40-gugmzR97Xe6AhkpWFbmBWJZB5QOXqMh79xfG7cTHO-KMttnczn1W-ECj25R17g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHSwRFTIH09Z4ookAW5TmHrp_yALrPnsV-6shk8ftE1ad4oTkbZHHCwIko-Ezm47FxziLfQ3eaw-H7yrHmcrI6rMmpQzHGFW4OwaosDT8c5PpAfjMvQyDB05Zcm7Mi7AE2wdnZCsctGHVFT=s800-w800-h500"],
+  desc:"Lisbon's vintage yellow trams are still the most practical way to navigate the steepest hills. Tram 28 is the famous route; the three funiculars (Bica, Glória, Lavra) each offer their own urban perspective. The Bica funicular through Bairro Alto feels like a film set.",
+  distance:"City-wide · Various routes",transport:"Buy Viva Viagem 24hr pass (€6.80) at any metro station — covers all trams, funiculars, buses, and metro",cost:"€4 per ride · Viva Viagem 24hr pass: €6.80 (unlimited)",time:"30 minutes per ride",
+  tip:"Ride Tram 28 before 9am if you want a seat. The Lavra funicular (1884) is the oldest and quietest. The Viva Viagem 24hr pass almost always pays for itself by the end of a day.",may:"Late May is warm enough to ride with the windows down — do this on the Bica funicular."},
+
+  {id:11,name:"Elevador de Santa Justa",emoji:"⚙️",cat:"Neo-Gothic Lift & Viewpoint · Baixa",tag:"experience",priceLabel:"€6 / €2.50 platform only",free:false,
+  lat:38.7121,lng:-9.1396,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHlURwRQ2zc7Ourr_y7RUJztDCVCSRylvmtTk-T0KvRR3t3dq6cMJXGoYy7YZSLeimqX849qrxua4TQ8SrhKo7AtIfFg8HtTFN5tOiDisDztgvbDNqkbuLoFVLnkt2uKT6PYGUXvDdMy9he5B4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGjdC04e2nPh-j43a9cxw0PjVDXHiyoFrcN0oOxd4eN9_7yOwenGkRSaHgx9JOYiG0G7xUSq2d9-c0Mr-hNSy9RrEmCDptkq6WR2X_8FFCvIWtLa5Jw9JO7NFx4w81Lb_NSaYksilvs2dvTvg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE0nJpTHFlxbFBVAIgASCKUvVuZycahtNKkOqhz0RtHZgycs-bfoBzN0VROk1-mIalVny9LZ776Cx2AAl4YSkVW3bKj2hg2q5pdOM43_S78xLCJV8VPHXym_6esFr2UpGfHcIbuqG0qHtbjYu4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH2fcKCIzCdNI7M8vkfcfhxw0bnG0h-3K9LwwO9iI1j9BBlmqDIgqvqweOAg-Y6MiTrvM8z89gQv_I4jZO0VyVVtsySH565zzk6nsVKpVxfRXSiKpbyu943pqn61iez3vDsVF0v0LkJnU51AA=s800-w800-h500"],
+  desc:"A cast-iron Neo-Gothic elevator designed by a student of Gustave Eiffel, opened 1902. It lifts passengers 45 metres from Baixa to the Bairro Alto, with rooftop views across the Tagus. The Convento do Carmo — Gothic ruins open to the sky since the 1755 earthquake — is directly beside it.",
+  distance:"City centre · Baixa · 3-min walk from Rossio",transport:"Walk from Rossio Square · Metro Blue/Green Line to Baixa-Chiado",cost:"Lift: €6 · Platform only (from Largo do Carmo): €2.50 · Convento do Carmo: €5",time:"30 minutes",
+  tip:"Skip the lift queue — walk up to Largo do Carmo from the Chiado side and access the platform for €2.50. The Convento do Carmo ruins next door are equally unmissable for €5.",may:"The platform at sunset (around 9pm) with light on the Tagus is beautiful. The Carmo ruins are particularly atmospheric in late afternoon."},,,,,
+
+  {id:16,name:"Surf Lessons — Cascais or Caparica",emoji:"🏄",cat:"Surf School · Atlantic Coast",tag:"outdoor",priceLabel:"€35–50 group lesson",free:false,
+  lat:38.6979,lng:-9.4215,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFyjQcxkVyejLi-oy0UJpAaya_IW-8WKxGJf_87nMRptjPiEuDgPXRuI_CiUAGMZVxzV1Mpwr8vnlnCDI7Eg9mJXx0ncb-Mv5GlTnJSOFokWwqs2EZaPGyxxOE684_3nPoRrR0apTeKKNLz=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEmQE_rY_M0weAOc0ZOMuYmIvRhcuE-EQV8sR_s7uRmsPRUIDOcCVWRBZfVsaE4MCpFaWTOY9FTb39MofDI3pLVefsBlc9yVMFHpRFmQwDU6PfpDAWEa44NjbkYrDY70jDnjF7y91uAK2_g-so=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGDPu7Q2ITsiNsKchzTDB7oVXAoaTMZWEzhxtj3VTd5_MegK1o7K1gMIpo5GLXXCzuLOtDstlm-aNl3YfAWtXYlEZhZauZiLhoApk7waQ4i_OtvC0vCmu9yv8A2v1yt4kKS1O8ncmR-chEzlRw=s800-w720-h478","https://lh3.googleusercontent.com/place-photos/AL8-SNEWP5ob7dxDD8OBPmx5_7pa_dHFEaE57drQCBos1YM-Y7rxr6JPVMJNKQTt8DsMRqOEt0fSUl5WoVfuCzrDW3UzM31HyRcRqYAWPtVjIXmclATsQrmG0bZ-1Z_bTB46n4LO5QfF2ti4kUIp=s800-w800-h500"],
+  desc:"Some of the most accessible beginner surf in Europe — within 45 minutes of Lisbon. Consistent smaller swells, water around 18–19°C in late May, and well-equipped surf schools at both Cascais (easier by train) and Costa da Caparica (bigger beach, local scene).",
+  distance:"Cascais: 35 min by direct train · Caparica: 45 min by bus + ferry",transport:"Cascais: direct train from Cais do Sodré · Caparica: Tram 15E + ferry from Belém",cost:"€35–50 for 2-hour group lesson with board and wetsuit",time:"Half day",
+  tip:"Book the morning lesson to leave the afternoon free for the beach. Cascais Surf School is right on the train line — simplest logistics. Caparica has better waves and a more authentic local atmosphere.",may:"Smaller crowds than summer with 9pm sunsets meaning a full afternoon at the beach after a morning lesson. Water at 18–19°C — cold but manageable in a wetsuit."},
+
+  {id:17,name:"Tagus Estuary Kayaking / SUP",emoji:"🚣",cat:"Water Activity · Belém Waterfront",tag:"outdoor",priceLabel:"€35–50 guided tour",free:false,
+  lat:38.6940,lng:-9.2035,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFlJ6fsmkH9p1Da-yE33LSlUipbqJIm7Kv60LgTnR8xA5_Kw4F8cZ5jt9ee_S0ImX1_L2BmpZujIoNaiUAcHKRJUiDw6jor3NDA5tjCJc_DgsSBfpAIwBPKnsvLOh8ynD8zInY_xK26wy0SDw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOi7-3-SWye5DuhiYlpoVDEMJgRvz70cH4mRhPAHg-JMk_8L2sESPaHa-EPbmcF4-C3EY8xFChVbGJrNJp7ELSSpmxw1fwn1uS5-YN0qe13sxoODIg0aX_DAf0MSmm_ksTNot2jkZKU_ziLQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH1oPDLz7fo2eYB5gSy8F9XM9n3HapzYQqcd9s5528TaTgLGS9Gw4BwEvCfkrkRI7afhUppF1VJFDLP8YqRoCxs-HSpiopXNtj7s7xKAM-OX0KhGVrIq38yxQyoFOGWoNEL_b4hRbJYuXEq484LLVXUUQ=s800-w800-h500"],
+  desc:"Paddling across the vast Tagus estuary with the 25 de Abril Bridge and Belém Tower as backdrops — one of the most photogenic outdoor experiences available from any major European capital. Guided kayak and SUP tours run from the Belém waterfront.",
+  distance:"Belém waterfront · Tour operators on-site",transport:"Tram 15E to Belém · Operators signposted from the waterfront",cost:"€35–50 for a 2-hour guided tour",time:"2–3 hours",
+  tip:"Early morning tours offer the flattest, glassiest water. Sunset tours are also popular. Book online in spring as spots fill quickly.",may:"Late May sweet spot — warm air (22–26°C), calm mornings on the estuary, and extraordinary sunsets from the water."},
+
+  {id:18,name:"Arrábida Natural Park",emoji:"🏖️",cat:"Coastal Nature Reserve · Day Trip South",tag:"outdoor",priceLabel:"€5–10 park entry",free:false,
+  lat:38.4897,lng:-8.9741,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFyjQcxkVyejLi-oy0UJpAaya_IW-8WKxGJf_87nMRptjPiEuDgPXRuI_CiUAGMZVxzV1Mpwr8vnlnCDI7Eg9mJXx0ncb-Mv5GlTnJSOFokWwqs2EZaPGyxxOE684_3nPoRrR0apTeKKNLz=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEmQE_rY_M0weAOc0ZOMuYmIvRhcuE-EQV8sR_s7uRmsPRUIDOcCVWRBZfVsaE4MCpFaWTOY9FTb39MofDI3pLVefsBlc9yVMFHpRFmQwDU6PfpDAWEa44NjbkYrDY70jDnjF7y91uAK2_g-so=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGDPu7Q2ITsiNsKchzTDB7oVXAoaTMZWEzhxtj3VTd5_MegK1o7K1gMIpo5GLXXCzuLOtDstlm-aNl3YfAWtXYlEZhZauZiLhoApk7waQ4i_OtvC0vCmu9yv8A2v1yt4kKS1O8ncmR-chEzlRw=s800-w720-h478","https://lh3.googleusercontent.com/place-photos/AL8-SNEWP5ob7dxDD8OBPmx5_7pa_dHFEaE57drQCBos1YM-Y7rxr6JPVMJNKQTt8DsMRqOEt0fSUl5WoVfuCzrDW3UzM31HyRcRqYAWPtVjIXmclATsQrmG0bZ-1Z_bTB46n4LO5QfF2ti4kUIp=s800-w800-h500"],
+  desc:"A limestone mountain range dropping into some of the cleanest Atlantic water in Europe — turquoise coves, white pebble beaches, and pine-covered cliffs just 40 minutes from Lisbon. Portinho da Arrábida and Praia de Galapinhos feel genuinely remote despite the proximity to the capital.",
+  distance:"40 km south · ~40 min by car",transport:"Car rental recommended · Guided tours from Lisbon with optional winery stop · Bus to Setúbal then local connections",cost:"Park entry: ~€5–10 · Guided half-day tour: ~€35",time:"Full day",
+  tip:"A car makes logistics much easier. Guided tours often include a winery stop — the Setúbal Peninsula produces excellent Moscatel. Swimming is possible from late May onwards.",may:"One of the best times to visit — water around 19–20°C (warmer than Cascais), beaches not yet full, wildflowers on the limestone slopes."},
+
+    {id:19,name:"Palácio Nacional de Sintra",emoji:"🏛️",cat:"National Palace · Sintra Town Centre",tag:"sintra",priceLabel:"€10 adults",free:false,
+  lat:38.7977,lng:-9.3907,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHZ1FGr-l7NJLqgJZvW4D09IYN00zSusn-GH1pkTIErWSQWNYulqw_XdzrKqndFkPdPlhHPCK2_HcH6HmCtfbOKuZ86Ze0Ij0Q_l-7DlrR9r7yCXzMyS6AMgMNHO8cu-yWCa0YomT2q2dUb7g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEXMtagDyHkovt7Egi4OpuNS2ZUjJ4O0QzwU_D6rNlK48bV4fm71evruZWWXBDq7hMUBaQQDScUTA9xBqWNnCQQE2-qh44o67qa7tEG_IZcrvulPpjrVJq6wiWeaxEm5lKSy6O4jihJU0JA-lU=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHITeW6l_nFSc_A0ZwyDBsyZ7v405sRmA6ifGq9SzPOZfABQ9otOp6xmr5GMpBXf0d6fFPxgMU2rpsmSvGsyMxJsfTLg0HqsArKJwbN5CNh0P2s7aZabi72ZLb7p-neQPo6A2iqSeVz9vBQnQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEVU_mhqY7NAq8A3uPhtO16r1FbrUKLYcPcnA4UcUK0fUn6MrS2Yk4fbAM1ExLqRV3EXW4rfDIPkL9cQPxftV5RoE3pCQsOOoaYIlJYyQ1pZoAd6UqImohREyg-PtDsXcPCiY2DQnPS2_WkQQ=s800-w800-h500"],
+  desc:"The oldest surviving royal palace in Portugal, right in Sintra town — recognisable by its two enormous conical chimneys. Built over seven centuries, the interior blends Gothic, Manueline, and Moorish styles with remarkable azulejo tile rooms.",
+  distance:"40 min by train from Rossio · 5-min walk from Sintra station",transport:"Train from Rossio/Oriente → Sintra station",cost:"~€10 adults",time:"1–1.5 hours",
+  tip:"Often overlooked in favour of Pena but architecturally richer and far less crowded. Buy tickets at the door or online.",may:"Open daily. Combine with a walk through Sintra's old town streets immediately surrounding the palace."},
+
+  {id:21,name:"Palácio da Pena",emoji:"🏯",cat:"Romantic Palace · Sintra Hills",tag:"sintra",priceLabel:"€17 palace / €8 park",free:false,
+  lat:38.7876,lng:-9.3906,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEb9YPO-PaUtBZsceTaYz3oULPwjkiIH4iKSOK2iEoibHBcnGUElrH7tvBmGs8TK5jXexD6N9uG5V4eDePZos_RaEuvgee-ja4ekdqCHosExmw0H-xMcDsX7HDpuavCv7X7GD6VZcXKA4KN5g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHtxmDrHIrkhN0LpBczuuyOpkupUcXymkyTt7RzIetNPPOgQBri3dMI3TTchVHRwUFgcF8qAF-HUlvRC9knMogfo5lhmhurPkNKhZViAHNq9ZqVspUdOX54HbsV19YMOYWW68QK44SEacIIkY99b2ctzg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNExkEpQQrNUe3SlVesrC7Ilyo2lrIVhTAPd0fYh0gt5f7wBnpJEdS0vwVqKAeFhR6NizvGLQEiMNmP9G4hyjJX5nSG5aV9xh6avx8zlH0Kj2Mq8ti7ssnmtgk6UtqBn_4YbZxhuiK0zjhrdhKo=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHN7pLwdQBS536TOPZ6YFjCDTbDvhgJqxBfbYXfhiXfaxb4Iqv-g9FVdAochvEM9vP5Bhp1wLBsOjYRex3eKlawrbTRVkfMszMZWw5DPpD3OtWIs_-DRemgNNHcj__BOrHx84NWJMF9Hehj7A=s800-w800-h500"],
+  desc:"Sintra's most iconic palace — a Romantic confection of towers and clashing architectural styles painted mustard yellow and terracotta. The interior preserves royal rooms exactly as left in 1910 when the royal family fled Portugal.",
+  distance:"40 min train from Rossio · Bus 434 from Sintra station up the hill",transport:"Train to Sintra → Bus 434 or taxi to palace gate",cost:"Palace: ~€17 · Park only: ~€8",time:"2–3 hours",
+  tip:"Book tickets online — queues without pre-booking can be 1–2 hours. The park alone (€8) is worth it if the palace sells out.",may:"Wildflowers in bloom, lush forest, cooler than Lisbon. Crowds lower than July–August."},
+
+  {id:22,name:"Quinta da Regaleira",emoji:"🌀",cat:"Mystical Estate & Gardens · Sintra",tag:"sintra",priceLabel:"€15 adults",free:false,
+  lat:38.7946,lng:-9.3969,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqFfx1FX2_Fsyu4axbbCNR6B8S45yBXLs8HVLogAeMbntLoEE7cr1FCXybe8j_qJSU2t6vNK6fHXfZZPkv7oIC5uI6CMzYA4vvs=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG-zH0kIIFvweQvzP_0qAMUVVS4QIbTHyx-ry6NP1f98phRPAxyEufKmVjQ5Yc909KVLcdlaK3IFZynUTPdruQjL-wd_jZ4iuYm9p9rfsuCt_7LOQggNL2pZ03kNelLkfKOz9C8_wJOLYOZTQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHDvfqiJT8VBa2ZzXzqAaBg_i99W99JxrFZcYFDMs3enJCFFXZV7XQ8e8gZ5f3M4WA_DWcvKdfKxQryeeFgbh2AinEMnV0b47NU2MphVgAxz710kjwwfWK_LYIKoqy55yjknoRThqvf_8uwIA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHJAXEfJYjr9auab2rRryHbfDKBRvLzEekVKUGoZXTwF5OIzoRbCxvY6WOyLuQfq5S7whL60n7ZFAFIJo_DOUiY89-prI0xbx91dJrB1hfH0ZztN3b4U3FW5v7y2heeicoQxxWixa1eNwI5hA4=s800-w800-h500"],
+  desc:"A 19th-century estate filled with Masonic symbolism. The Initiation Well — a 27-metre spiral staircase descending into the earth — connects to underground tunnels and grottoes. One of the most unusual and memorable sights in Portugal.",
+  distance:"40 min train from Rossio · 10-min walk from Sintra station",transport:"Train to Sintra → 10-min walk or taxi",cost:"~€15 adults",time:"1.5–2 hours",
+  tip:"Book online — it sells out. Arrive at opening (10am). The underground tunnel system is unmissable.",may:"Gardens exceptionally lush in late May. Morning visits are quieter."},
+
+  {id:23,name:"Castelo dos Mouros",emoji:"🏰",cat:"Moorish Castle · Sintra Hills",tag:"sintra",priceLabel:"€12 adults",free:false,
+  lat:38.7926,lng:-9.3893,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFQOyVfw6bP2DqvP5B1Lnc4v2vnrMI2eSbVbNX_1tbBmccfBOV-JpFAGuyCqgUg9LaXL7SAEkTvbDVFbQ30xd3iGU3VMIKAb2BucbqaCwj9_ybVW5LFb5wWNyB5bzqUc0040PRATEeEgIlWjA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHxgT47bMNP62-Pb0tUW0bIgIdN00thq0nylTFsonjHCpJv91nAGB3DdyM0tUjHFe7JMMpwlWdjeW4FTOoBM1yTW7D9lMn8zJR03C0XnurddO33fnRbWkimKjfETFwfym-hw0viS9PLFkqdnzu_jiwoXg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG2wKYczPr7g02CyLpQUZQqp-3HFFr-7hsnwb4hxy35h97QTaLGD1d2NkcsvJbIvwntGTppp5f-ZTR2ajma75LPb1v7A1DwPQWRylhYfIFM3de3oY8Y7VxXYxborDAiyRiq1LPvDggUNuYIxA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEw3-9yQt5Unv5rGbueab0Tj0Rjt7pErM_TQwR9dZ4ZJclJOiMeKxVsf6fL7X5QSw2D_L3uqcfDAqkLjK0g2bIpWWQSMqOig3b7pY_e1aUZwr6r8yr_hiuT25-5d330tN-VwvypPAk7EWrflok=s800-w800-h500"],
+  desc:"A 9th-century Moorish hilltop castle with sweeping views across Sintra, the Pena Palace, and on clear days all the way to the Atlantic. You can walk the full circuit of the ramparts — one of the most dramatic medieval fortifications in Portugal.",
+  distance:"40 min train from Rossio · Bus 434 from Sintra station",transport:"Train to Sintra → Bus 434 (same as Pena Palace, stops below the castle)",cost:"~€12 adults",time:"1–1.5 hours",
+  tip:"Visit before or after Pena Palace — they are a short walk apart. The rampart walk is steep so wear comfortable shoes.",may:"Outstanding views with clear spring skies. Less crowded than Pena."},
+
+  {id:24,name:"Palácio de Monserrate",emoji:"🕌",cat:"Romantic Palace & Gardens · Sintra",tag:"sintra",priceLabel:"€12 adults",free:false,
+  lat:38.7942,lng:-9.4206,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHzkgElWT2prDNYtbgxKoNvWI2s1Y3TQKaFgfsDeMVjj_jRrnJm1yKFrwZPsMII4kYqqTpGcQwa1pePFCZnlatAjgz3ZEQdL8rCHf2DPYrEEtLGSRMmQDrQdxYScuaZJI4zakjavVqEZRycZw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHgBwTes2an5oUaCN5T9N7lipVjsCS82iRVNhTWXPc9E2zLhe2fx-F7sHYWwAeqDyawz53tcQ0zmcL_jkxCJENZejwruX7JWHxwnBz4tpT2vBHaddYB9aROb4sr_bujdrPAUFZBsqR5Nj0_gfs=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHu33XM9uygHWFJJe8SKVpZK6-1ypGmp24RJn3CMYMaTYe4XcLL1_C1h8fc7FpxlRF_Z96bmTf5yhMto3IB_ZsBnREyeqZ4sXGXpDAUTuoGVAKUfLkG7V3HvElMXAa5NpPWuhOVcMJGqRCwYMg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFfDlnL5eTSO5UnHW1JNrxiqpjpUvok4onJbL0FxzKGE_so1GoOF1r0BbMwaFGIlP8FQTTmeAtRBENKDpNoxzqm7I2jtwbdxp9NQXl302AzC19angcS3gDKxDnZvUaCjfawfKz6xEi-I2ipIm8pD_DnBA=s800-w800-h500"],
+  desc:"Sintra's most underrated palace — a 19th-century blend of Moorish, Gothic, and Indian architecture in vast botanical gardens. Far less crowded than Pena, with extraordinary carved stonework and exotic trees from around the world.",
+  distance:"40 min train from Rossio · 5 km west of Sintra town",transport:"Train to Sintra → Bus 435 or taxi (15 min). Buses run hourly.",cost:"~€12 adults · Gardens only: ~€8",time:"1.5–2 hours",
+  tip:"One of the most beautiful buildings in Portugal and consistently overlooked. Combine with Capuchos Convent on the same Bus 435 route.",may:"Botanical gardens are sensational in late May — exotic trees in full leaf, azaleas still flowering."},
+
+  {id:25,name:"Convento dos Capuchos",emoji:"🌿",cat:"Hermit Convent · Sintra Forest",tag:"sintra",priceLabel:"€8 adults",free:false,
+  lat:38.7844,lng:-9.4381,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGzGp3SpLeNwZy_mNzRPk_vWr7ZUgzg9YAwafFBSpzPb4MTnoEr_ML5KmAPNEDmVI4811xEvfOlGK_VomVS_isr8J76fiQ48ZaNh-QATS3EZLJ-1alQ6TRYorG_B44wq-9ljaORF4auaiHC7KM=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOowgjSqElqxo-XsLUBbRRmE24G-j87kw4BiLHM5BxIbJRVXh1lP7lkjYAbEkJZ27eTH6xpdv2VyvwsiwuN569_Dd3XHiX_cQyUG9Eokan5Ba10-IN5xNKSahXsIQrhtxr--gJybm7IysSfA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEpXok6yeE7JhMN4XqWOwjYwG5ZhLF4-nXPSKBDxnliecpmPhH4xg7LoVBeMdubRgUWm5ol-QcVDYmCkLXacDx7uom-mfSPgdrhV3piNQPuLILtjG5_BVNGwahmho6QH64ejpfATNtMAfy5Xv8=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE0dyWKzerDiTwMw3HkqWPJu-3UvTLNLw-dgeD4vg_EgKyLad4lUE27x3-B0spfle6jfKJjKkRFoViUSms8zHQ_sissp_8_7SQTxHjCOl-h8xjqjN-AIR75JmtAYDigZQ6Y1-dCfHZ1GYNLOA=s800-w800-h500"],
+  desc:"A 16th-century Franciscan hermitage carved into the forest rock and lined throughout with cork. Monks lived in tiny cork-lined cells for 300 years in near-total isolation. One of the most eerie and atmospheric places in Portugal.",
+  distance:"40 min train from Rossio · 10 km from Sintra town",transport:"Train to Sintra → Bus 435 (runs hourly). Taxi also available.",cost:"~€8 adults",time:"1–1.5 hours",
+  tip:"Go first thing in the morning for near solitude. Combine with Monserrate Palace on the same Bus 435 route. The cork-lined rooms must be seen to be believed.",may:"The surrounding forest is magical in late spring — birdsong, wildflowers, and cool mist."},
+
+  {id:26,name:"Chalet da Condessa d'Edla",emoji:"🌸",cat:"Royal Garden Chalet · Pena Park",tag:"sintra",priceLabel:"Included in Pena Park ticket",free:false,
+  lat:38.7851,lng:-9.3991,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqF-Tr5m9DS-K5Wv5TM9hks_7nVn6ySChmOKzeLDiRyj0fldeJfZww4GR0Jxsi_ccJGReZOSmCdD749KtiQYBHYOoR6_J-tZDpI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEdF7z1OkSbGTQmLAusHPn7KncA-s3wY-1mjUGeP7_DJ-6OdWIkj-Ctk4xrnEskueA1kTT7B8LLjX9WFFjiI1gZad0bNwGCYAfHzJTxOdxznYLD7LSBo4qQ3VgqUPmT9itKZLrsmqg13nIgEA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHaTz6Xa79-SPUVYPWUI7CJgh_dNUlp_am6hddsO47UCpzSf7hKe_ZZ9oW0OpGqte7DR89QVPLv58PMk6I1eqJQs7xixMZvNZ3BYBnujvQoPkfNiSczPcvGei3aePqsEYY_nzf5XSPd-dWYqOU=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFIGVR0y42RfMckW5IC3SRkm3_ssEwlebPS0EdtQ5fVRzpxzeIkVqoMSRwS9rgkEP8Cy-HumyJgZTx1TvjshonQueIX8lnGWba1T57Aevuo15wsNInhTmmljRmQKY6B4mfsiVN6Dh5GoZNd3MQ=s800-w800-h500"],
+  desc:"A fairy-tale Swiss-style chalet built for King Ferdinand II and his second wife, hidden in the Pena Park gardens. More intimate than the main palace — decorated with cork bark, painted tiles, and intricate woodwork.",
+  distance:"Within Pena Park · 30-min walk from Pena Palace",transport:"Included in Pena Park or Palace ticket. Walk from main palace through the park.",cost:"Included in Pena Park ticket (~€8) or Pena Palace ticket (~€17)",time:"45 minutes",
+  tip:"Many visitors miss this entirely. Pick up a park map at the gate and budget extra time after Pena Palace.",may:"Surrounding parkland in full bloom. A quieter, more contemplative stop after the main palace crowds."},
+
+  {id:20,name:"Cascais",emoji:"⚓",cat:"Coastal Resort Town · Day Trip",tag:"daytrip",priceLabel:"€4.60 return train",free:true,
+  lat:38.6979,lng:-9.4215,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHUckwq2MpMysvjr31VA3f27hx7RKa_zHwDdve3l4VF7o0b8mx88-g3Xmylo-LKSN6bK_rHjEavTBuhKazEcFdQHAEvlGKLwjKbfs936cetOum7HbBgBL_RZHHmu_WEO0CrRnLFPqkSj1D5uw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFSyC19uNgNtlvA3P1VKFVKvmvq654Npy1wf9n3knewgDppxWMxMBgxoQ3vLN67Uw8mm-PjN6pbCMaywZRC37Sh-DXqGFB15ABplHZWywSgk24ud4-R4NsCFJYPcWcgv3ni67b2-UnX80yRiHc=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF2qCYfAVMmKa8IQLMXSkSauYIKQb0u3-uBrdYmnW3JPMQe9kGMY9jnWH8O_lQSl_spdYyTWhTxSVVrf0UaSb4RUq4MIj63OxYe-85LB6qEIVe8eYQYeHQfozN_z7l6-pXnvObpsXpemHEnWI5paCmnwA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGhnBcxkjnIY3btODR2zSUps24v2uo1fcPDBlgjaU0mX35ZQaKVXctKm_XBCnAees-Ma8BcOu31ZM4ZIcc3fGvodJuvIgzY9ST7cKioZn5f8mG5CSJLZ-of-tXyl8IBBun6Dv6UGP8HDSCezg=s800-w800-h500"],
+  desc:"A handsome former fishing village turned royal resort, reached by one of the most scenic commuter train rides in Europe — along the Tagus estuary with sea views throughout. Excellent seafood, a historic centre, the dramatic Boca do Inferno sea cliffs, and Atlantic beaches within cycling distance.",
+  distance:"40 min by direct train from Cais do Sodré · Trains every 20 min",transport:"Direct train from Cais do Sodré (€4.60 return) · Last train back runs until midnight",cost:"€4.60 return train · Most attractions free",time:"Half day or full day",
+  tip:"Rent a bike at the station and cycle the 8km flat coastal path to Guincho Beach — wild Atlantic sweep with views toward the Sintra mountains. Last train back at midnight makes it a realistic dinner destination.",may:"Combine with Cabo da Roca and Sintra in a single triangular day using Bus 403. Water around 18°C — cold for swimming but perfect for cliff walks and beach sitting."},
+
+  {id:27,name:"Miradouro de Santa Luzia",emoji:"🌺",cat:"Scenic Viewpoint · Alfama",tag:"viewpoint",priceLabel:"Free",free:true,
+  lat:38.7117,lng:-9.1302,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEHWMUeJM2dZuksoxb6GUwl6-rNm4lgnwKh6XMKA02pT1zk3OYPxv0xSne4lj8uP-Em2SBbVyft6wWeEiVIrNoTqdYl3Rtxz-QhoKWnA9WLoNLZ5OXktF5Y4ZUDBC_7HKwHYU2BdVZKpxkEPg=s800-w720-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGF9RW7VKq3jyQXR5aMFGeXz22lRO7f24i3JHE9HbCBGOrrUk_gFmSugEvJZYAv_XmaAJKm8HrDvSshA6dtutpNREtyqfK1ZGyJoqs2B8WiQJ6WzKy0ir1YBw9GDtxouA71vr-Lik4pJaQU=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG_NV41_4KC-IXB2SvUNg1cHzrp6Zpe89xBNgePBeqJyRwOIXdwbHNaK7t-RqfH3Iehfqah0ZprusywfdsqRizH1-k1_w41vE9t4hnYV-FB537ZU3VEdgfFg-7Gfgz0zlpLPf25bI-xd8I1SA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNECjsZoWzFJfxAa5HS3wBd_0uP7H-TX_5prcUkwjPbb3SP0MfvUTM2w6fA3NiCJkCkWcQBig4WkRsaf0DP8k69SnZnNPRQd5pibw4tsYWCAt4uPRsXUgoMdQjuSUKeX6rnC2fGTaxcP7TDE=s800-w800-h500"],
+  desc:"A tiled terrace overlooking the red rooftops of Alfama and the Tagus, framed by azulejo panels depicting Lisbon's pre-earthquake skyline. Tram 28 stops here — one of the most photogenic and atmospheric spots in the city.",
+  distance:"Alfama · Largo de Santa Luzia",transport:"Tram 28E (stop right at the viewpoint) · 15-min walk uphill from Baixa",cost:"Free",time:"20–30 minutes",
+  tip:"Best in the afternoon when the light hits the rooftops and river. The azulejo tile panels on the surrounding walls are worth studying closely.",may:"One of the most beautiful spots in Lisbon in late afternoon spring light. Combine with the Alfama walk downhill afterwards."},
+
+  {id:28,name:"Praça do Comércio & Arco da Rua Augusta",emoji:"🏛️",cat:"Historic Square & Triumphal Arch · Baixa",tag:"landmark",priceLabel:"Free / €3 arch viewpoint",free:true,
+  lat:38.7084,lng:-9.1368,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNG-MQkhi6UqwPt6dT4H1mgfzyy1_Z4rWpGp3eLfavPeyzutjt1ddnmGahcaqjkQC6EpZPldsSXzv_u1IJfWdMsNH4qiSGxXvxDGuj0zmafZRptFeLSbqjLlLLZoNBES_siZl2OkhCrCCgqoNg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFRCdvoOBb3hzo8_lKFjvfAc7BBoroAQc_ru2ZUdzL43nFtAzZ3SQ9dgQM45qatpuex-tqeNvGbRvHMihnpS4YkZYYu4Uj7tNCMqcPvnOdl1S1DrgzU2Fw3nHcDsy-zX1yhFI5sgBtjNjRqS28=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEKqruI-3SpckS7WIfNheUm--OBSvR3Ntv2Egi15-IDlYvWTG2XBlOP1EB_-XXQrZFZ207kSFwwgAMYoTTs1l9cnFFYprBfHMeaRhA5gUdkFqiJL_GAuleUMCsKivSsEOJBw0B49ohXDb_qfQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFToE_-4IHt211p-lk8LhlfVJWba0LVgFdRzCRufcVN4m6-57xQyOYiuBSlVN474vJdoPtTcuJ_icFr-5Dv2wCMNXKfU9ZQOP7HaqtY0RZOEteXp5IWgPHNYqdQkQuGFmVpIb5IsbO9mRsT7Y3tOAKo7A=s800-w800-h500"],
+  desc:"Lisbon's grandest square opens directly onto the Tagus — flanked by yellow neoclassical arcades and dominated by the equestrian statue of King José I. The Arco da Rua Augusta at its northern edge frames the view up to the city's main pedestrian street.",
+  distance:"City centre · Waterfront · Metro: Terreiro do Paço",transport:"Metro Blue Line to Terreiro do Paço · Walk from Baixa-Chiado (10 min)",cost:"Square: Free · Arch rooftop viewpoint: ~€3",time:"30–45 minutes",
+  tip:"Climb the arch for a panoramic view over the square, river, and rooftops (€3, worth it). The square is Lisbon's main riverside gathering point and best enjoyed at dusk.",may:"The riverside promenade is busy and pleasant in warm late-May evenings. Outdoor terrace seating fills the arcaded edges."},
+
+  {id:29,name:"Sé de Lisboa (Lisbon Cathedral)",emoji:"⛪",cat:"Romanesque Cathedral · Alfama",tag:"landmark",priceLabel:"Free / €4 cloister",free:true,
+  lat:38.7098,lng:-9.1330,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEPsN0htWMaPKCGy8XOJHB7ocHJy4E8dwfjvcgYuSmDDW5jkggRYuo1ZpLofQ8pFLTGwtfOKGvnDo0DXhzlviF_UcHCXW2jSiqz3JAwmScRC4n43MoSmJuF8ldE004ZnWW7p3loSqXWRbiqKWA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFcCxkGTMh9scAgtf243k5eiULtFyQxS8LOk__qP5__LOZ2sH-c6zk0T8XMYNuUHapSgkBho5dgrXxm6NCWQ8T8bpggpbkDiJ9cePtkwTopgLBZraslyAyBEujF1zd4uHT1wJv9aumjgUUrug=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFVp_WD6MKItrGbV1RHa2JOz1vmRdZUXAz5YQOfLT3V4xEU3MBHhf2DSdBv8EZ3CIIOlLyUStgbGhMjBQ6RNKg8kQ8AJ1BFGuG-6KvZeDXagnIFN-EJdq_xTJcRot9vEZ73nMOEunGjUWhpPS4lakxkbg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG9hgCWixOAmPA-3rJgTVdFLrx53ybZ1tpp5497kT4ClW6-qGwouXTaaVLZWKeGZ08Hz8egmNa5To_NyzuUyanBkc80-sfBXepaj-dJZ2u9wMvKhD4aGZ5cc9MWzO4fwHtWO3aMX9ZPgWhVtvPn3NJ-Tw=s800-w800-h500"],
+  desc:"Lisbon's oldest church, founded in 1147 — a fortress-like Romanesque façade with twin towers that has survived earthquakes, fires, and centuries. The interior contains the baptismal font where Saint Anthony of Padua was baptised.",
+  distance:"Alfama · 10-min walk from Baixa",transport:"Tram 28E stops immediately outside · Walk uphill from Baixa",cost:"Church: Free · Cloister: ~€4",time:"30–45 minutes",
+  tip:"The exterior is the main event — one of the great Romanesque facades in Iberia. The cloister (€4) contains ongoing Roman archaeological excavations.",may:"Tram 28 passes right by — combine naturally with an Alfama walk. Visit mid-morning before the tour groups arrive."},
+
+  {id:30,name:"Convento do Carmo & Archaeological Museum",emoji:"🏛️",cat:"Gothic Ruins & Museum · Chiado",tag:"landmark",priceLabel:"€7 adults",free:false,
+  lat:38.7120,lng:-9.1406,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHByR50-VA2Zswbs4r056kjtIdrfwezIBf3wrEbkpafbMZsh6mpuBf4KbqAqw0jHzqHjAt6VMl3HnDdY5QXjCKXOemUxLLtNi6yTrGE7PRpQWC9pSYPkf5QOTrbzvBTaCoNVlvwvs_Tf5_t3BY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEcr39wKB2Fw-MsVau33t4ytx-Eizq6jKzCxOxP1GOV7gl3gDCectb2oQwJjYrTN0f2pDyDr05x5stFXojO-89tSq5oNTLrPQS6LrggEhu8FGSmxqHqCaRMwLvkGLMhwJvVx1K1w276tAorpg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGtpCn4WHKH3NJKuz3zxd03duIaNtfLeqLYaG-Ap-WIy6lj67EFTvUvZRuyrQ8Xv_3glvP9A7Sr9HyW5XE6W3lD8c4oCHFZTpdgsCCiTg7tU4y3QaJu_hUxYrhRHfYpbGF_FRwtPN3iVH25iQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF3B-E3k-yafEfDn26uTkCG2E1h2ZjWXdFLaWeeqed0pbIvSMoRe3qTFtcIvhmNFqpW9FlFe9X7e0D2CGPBF5hct03ocPS4NSCpoSihHHOcDVVQw6_-1EbhGR9MUAGXHcla3Df10wA3ZGM8jF0=s800-w800-h500"],
+  desc:"A Gothic convent left in deliberate ruin after the 1755 earthquake — its roofless nave now open to the sky, filled with carved arches and atmospheric light. The small museum inside contains Egyptian mummies, Peruvian mummies, and medieval artefacts.",
+  distance:"Chiado · Largo do Carmo · 5-min walk from Baixa-Chiado metro",transport:"Metro Green Line to Baixa-Chiado · Walk up Rua do Carmo (5 min)",cost:"~€7 adults · Lisboa Card: 15% discount · Closed Sundays",time:"45–60 minutes",
+  tip:"Access the observation platform of the nearby Elevador de Santa Justa from the Chiado side (€2.50) without queuing — Largo do Carmo is right there.",may:"The roofless nave is magical in warm May weather when light streams through the Gothic arches."},
+
+  {id:31,name:"Pink Street (Rua Nova do Carvalho)",emoji:"🌸",cat:"Colourful Street & Nightlife · Cais do Sodré",tag:"experience",priceLabel:"Free",free:true,
+  lat:38.7072,lng:-9.1438,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEm2-SKpS1fM7u-X3NDKUvAHYVqoCr3m4-EMXLNrpcXLtf0PMvW8pcLjdTw_CkZXDk_KsZ-KTAPzGNpQbLtvVDp1aYOR44UBDOO6GD84v77Jzzy_mn2z8WLvFvAaF8yZyFFOt_zPUPXamhS1RtYyqZB=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNExXFZXAGJ0aKkQCyoWFY1CN7vSQBcV6qlmFHflTZKVcl47fJoAKdO9Vtav2m1FCJDQjfrYbXQ84bqxnKhC9KlYCJhrIANafAJe2oEBr8waByxTDYpd7aI0NgoF391Ulh2jJkpnMXZ3Cjvy3g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGYz9aztHLhaU_2-An2GXJPV_UwrodFvL-874GDlbQxJnTp9sQ-VADEehS8x23fWumLlSKbR2I_uiRrjt5ykZqFKQVUKG9OzYZ8KamrDbj3qMZ7fEQrc99KwZcy_zapGlyXlmgw_EB3CeMG390=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEt8La8WYbLp4hyGcPnBIsYGYIZ3o2tcM1FS9gHTf9J-_C6BtzVY46Mlnk6ewQXhspyS1fLsv6UUYxVazUQwCSfWRQDDM-fDhzvD38KbUApYleCrrNnR4oOAes7TIYAERZV465Tba2htI2Hvg=s800-w800-h500"],
+  desc:"A short street painted entirely pink, once part of Lisbon's old sailor district and now lined with bars and restaurants. More interesting for its lively evening atmosphere than the colour itself — this is the heart of the Cais do Sodré bar scene.",
+  distance:"Cais do Sodré · 2-min walk from the metro",transport:"Metro Green Line to Cais do Sodré · Walk from Time Out Market (2 min)",cost:"Free to visit · Drinks from €3",time:"Evening",
+  tip:"Best visited from 10pm onwards when the street fills up. Go early in the day for photos without crowds — best on a Sunday morning when it is completely empty.",may:"Warm May evenings make this genuinely enjoyable for outdoor drinking. Combine with a visit to the nearby Time Out Market for dinner first."},
+
+  {id:32,name:"Ursa Beach",emoji:"🏖️",cat:"Wild Hidden Beach · Sintra Coast",tag:"outdoor",priceLabel:"Free",free:true,
+  lat:38.7906,lng:-9.4923,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGGtxPAioQYOnleboaO2kSY_JknCKm6nkoborLrLpXFdp2fxSGftjFTVLUoyN-pmtq0BIkTez5y8mIwUHOElR-Kk8RbiG4cjDNbraVa2XvJ-YBFjLyEPC9VulJoMUHZ8WwL8puVPGrd3fH76l4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEMuPxHLPtodxcNITE6fDAd7lmWRvLjTqIf3P7zZDdg1RNwOoG4EXaFox350lMx6n1dv4SaO_YoD-gbIAxNZL_uj_4fxZ8ctsK2FukJ7nQzQPdxSP-vPyvf8AVGvqtsh4jqLLUWeqMuiUEEAw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGq_9Qd3THYsCYbNpwaP6Hb5oqqC_83md8jk7q_9Dp-v_Rp67U-wuhSq77qXt56OcIJyDcm6-zMepkTtRj19CdcXHNVTREizNEyashes3rGCba2w6bcIBNsdEw8P4sDAlXFM5egqJ5OYGne6Ew=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFXn-XGAG4BULyqEmfIyIMnNmi3Mc5Mn25T9nWlZ9yzlQ12gcGVNqqpIUbYPM_uK2kaEzFtS0jLFvaRx6YB6ByoqexQWu2wv99aWZR7nmnXI0tNWZ0SiHSB4FAnHB8OSaTRO2Sav6mhTwqqCA=s800-w800-h500"],
+  desc:"One of the most dramatic beaches in Portugal — reached by a steep 30-minute cliff trail from Cabo da Roca. Massive sea stacks, crashing Atlantic waves, and towering cliffs create a genuinely wild landscape. No facilities, no crowds.",
+  distance:"70 km west of Lisbon · Near Cabo da Roca, Sintra",transport:"Car recommended. Train to Sintra → Bus 403 to Cabo da Roca → 30-min hike down the cliff path",cost:"Free",time:"Half day (allow 1 hr hiking)",
+  tip:"Wear trail shoes — the descent is steep and loose. There are no toilets or food. Waves are powerful; do not swim unless conditions are calm. Combine with Cabo da Roca (westernmost point of continental Europe) next door.",may:"Late May is ideal — wildflowers on the cliff tops, uncrowded, and the 9pm sunset means golden light on the sea stacks. The Atlantic is cold but the scenery is extraordinary."},
+
+  {id:33,name:"Vila Nova de Milfontes",emoji:"🏄",cat:"Alentejo Coast Village · Day Trip South",tag:"daytrip",priceLabel:"Free beaches · ~€15 bus",free:true,
+  lat:37.7195,lng:-8.7890,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEFMt9Zo9tpVTW0JyVpppeLbRrDrKWv5A6rLIifsRgJ7nuG1-Hx2i38b5vz7zTk1ehU1jBLz3V69lVoB2bGsM0Qno8I_tRhcA_VYFj-4hqaVcjrb4mx9FwW_Xa1mIzpXl6ZgK0wH_tDxXZMuig=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFTnvTy3lyOW0NJtku2D9qox0dKPO6wPq0lSEccL6Ay7ogQnvkuoHfUlo7e152SUSjsp9sowAFu_ILxtI6cciuo6LdAii-Opls_HvprK7HT9hRFTArKC1tpUYa9qBNEIMsAOZY7VrQHmt6eQQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFwq3Lkfkk2G8YSh3fnv7W0IJmJDmeJ9h9bZ1varQ9XVxbtBT-koQ_skMeJPbDaGABEIdCnFvWH0aC040pINVIKlVRpUJZUiOtM1XPl81sweFEbxWmsrJ7aHUVcESDxT2SI5V0bNmNtoWUR6w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEvlabliALljuLGlTpwY0tlcOmC-AICqhCpxJDMrEmHsl01z6j2WQAKVX9ldBGlWxLVDwnS7SzwV7fClUkBTN1BjiZBL7u7ryMzFavr70LUK_cy4hzeKuNkr30JOTHfwQ-N1o2mDPBLwXww=s800-w800-h500"],
+  desc:"A whitewashed fishing village at the mouth of the Mira River on the Alentejo coast — one of Portugal's most beautiful and least overdeveloped coastal spots. Protected beaches on both the river and ocean side, with excellent seafood restaurants and a relaxed atmosphere.",
+  distance:"~2.5 hours south of Lisbon by bus",transport:"Rede Expressos bus from Lisbon (Campo Grande or Sete Rios station) · ~2.5 hr journey · Return buses run in the evening",cost:"Bus return: ~€15–20 · Beaches: Free",time:"Full day (depart early)",
+  tip:"Book the morning bus in advance, especially on weekends. The ocean-facing beaches have stronger waves; the river estuary side is calmer and warmer. Several excellent fish restaurants in the village centre.",may:"Late May is the sweet spot — before the July–August Portuguese holiday crush, water is around 18°C, and the surrounding landscape is green and wildflowered. One of the finest beaches accessible from Lisbon."}
+
+];
+
+// ── SLIDESHOW STATE ───────────────────────────────────────────────────────────
+const ssState = {};
+P.forEach(p => ssState[p.id] = { cur: 0, total: p.photos.length });
+
+function goSlide(id, idx) {
+  const ss = document.getElementById('ss-' + id);
+  if (!ss) return;
+  const slides = ss.querySelectorAll('.slide');
+  const dots = ss.querySelectorAll('.dot');
+  slides[ssState[id].cur].classList.remove('active');
+  dots[ssState[id].cur] && dots[ssState[id].cur].classList.remove('active');
+  ssState[id].cur = idx;
+  slides[idx].classList.add('active');
+  dots[idx] && dots[idx].classList.add('active');
+}
+function changeSlide(id, dir) {
+  const s = ssState[id];
+  goSlide(id, (s.cur + dir + s.total) % s.total);
+}
+
+function toggleDetails(id) {
+  const btn = document.getElementById('dtbtn-' + id);
+  const body = document.getElementById('dtbody-' + id);
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('.arrow').textContent = open ? '▲' : '▼';
+  btn.querySelector('.label').textContent = open ? 'Less details' : 'More details';
+}
+
+function priceBadge(p) {
+  const isFree = p.priceLabel.startsWith('Free') && !p.priceLabel.includes('/');
+  const color = isFree ? '#7de0a0' : '#fff';
+  return `<span style="color:${color}">${p.priceLabel}</span>`;
+}
+
+const grid = document.getElementById('places-grid');
+P.forEach(p => {
+  const isDay = p.tag === 'daytrip';
+  const slides = p.photos.map((url, i) =>
+    `<div class="slide${i === 0 ? ' active' : ''}"><img src="${url}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.style.display='none'"></div>`
+  ).join('');
+  const dots = p.photos.map((_, i) =>
+    `<span class="dot${i === 0 ? ' active' : ''}" onclick="goSlide(${p.id},${i})"></span>`
+  ).join('');
+
+  const card = document.createElement('div');
+  card.className = 'place-card';
+  card.dataset.tag = p.tag;
+  card.dataset.free = p.free ? 'true' : 'false';
+  card.id = 'card-' + p.id;
+  card.innerHTML = `
+    <div style="position:relative">
+      <div class="slideshow" id="ss-${p.id}">
+        ${slides}
+        ${p.photos.length > 1 ? `
+        <button class="slide-btn slide-prev" onclick="changeSlide(${p.id},-1)">&#8249;</button>
+        <button class="slide-btn slide-next" onclick="changeSlide(${p.id},1)">&#8250;</button>
+        <div class="slide-dots">${dots}</div>` : ''}
+      </div>
+      <span class="cat-badge${isDay ? ' daytrip-badge' : ''}">${isDay ? '🚌 Day Trip' : p.cat.split('·')[0].trim()}</span>
+      <div class="price-badge">${priceBadge(p)}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">${p.emoji} ${p.name}</div>
+      <div class="card-hint">🗺️ Click card to locate on map</div>
+      <div class="card-category">${p.cat}</div>
+      <div class="card-desc">${p.desc}</div>
+      <button class="details-toggle" id="dtbtn-${p.id}" onclick="toggleDetails(${p.id})">
+        <span class="label">More details</span> <span class="arrow">▼</span>
+      </button>
+      <div class="details-body" id="dtbody-${p.id}">
+        <div class="info-row"><span class="info-label">📍 Distance</span><span class="info-value">${p.distance}</span></div>
+        <div class="info-row"><span class="info-label">🚋 Getting There</span><span class="info-value">${p.transport}</span></div>
+        <div class="info-row"><span class="info-label">💶 Entry</span><span class="info-value">${p.cost}</span></div>
+        <div class="info-row"><span class="info-label">🕒 Time</span><span class="info-value">${p.time}</span></div>
+        <div class="info-row tip"><span class="info-label">💡 Tip</span><span class="info-value">${p.tip}</span></div>
+        <div class="info-row may"><span class="info-label">🌸 Late May</span><span class="info-value">${p.may}</span></div>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', function(e) {
+    if (e.target.closest('.slide-btn') || e.target.closest('.dot') || e.target.closest('.details-toggle') || e.target.closest('a')) return;
+    map.flyTo([p.lat, p.lng], p.tag === 'daytrip' ? 11 : 15, {duration: 1.0});
+    setTimeout(() => markers[p.id].openPopup(), 1100);
+    document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+    card.classList.add('highlighted');
+    setTimeout(() => card.classList.remove('highlighted'), 2500);
+  });
+});
+
+const map = L.map('map').setView([38.717, -9.142], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+}).addTo(map);
+
+const tagColors = {
+  sintra: '#7B3F00',
+  landmark: '#1A5F6B', viewpoint: '#4A6B8A', experience: '#5C3317',
+  food: '#6B2060', outdoor: '#2E6B3E', daytrip: '#1a4a1a'
+};
+const markers = {};
+
+P.forEach(p => {
+  const color = tagColors[p.tag] || '#1A5F6B';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:${color};color:#fff;border:2.5px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:pointer">${p.emoji}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20]
+  });
+  const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+  m.bindPopup(`
+    <div style="font-family:sans-serif;min-width:190px">
+      <strong style="font-size:.92rem">${p.emoji} ${p.name}</strong><br>
+      <span style="font-size:.78rem;color:#666;font-style:italic">${p.cat}</span><br>
+      <span style="font-size:.78rem;color:#555;margin-top:2px;display:block">${p.priceLabel}</span>
+      <a href="#card-${p.id}" onclick="scrollToCard(${p.id})" style="display:inline-block;margin-top:6px;font-size:.78rem;color:#1A5F6B;font-weight:600;text-decoration:none;border:1px solid #C8E8ED;padding:3px 9px;border-radius:5px">View card ↓</a>
+    </div>`);
+  markers[p.id] = m;
+});
+
+function scrollToCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  const panel = document.getElementById('cards-panel');
+  panel.scrollTo({ top: card.offsetTop - panel.offsetTop - 10, behavior: 'smooth' });
+  document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+  card.classList.add('highlighted');
+  setTimeout(() => card.classList.remove('highlighted'), 2500);
+}
+
+function filterCards(tag, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let count = 0;
+  document.querySelectorAll('.place-card').forEach(c => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'free') show = c.dataset.free === 'true';
+    else show = c.dataset.tag === tag;
+    c.classList.toggle('hidden', !show);
+    if (show) count++;
+  });
+  document.getElementById('count-badge').textContent = count + ' place' + (count === 1 ? '' : 's');
+  P.forEach(p => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'free') show = p.free === true;
+    else show = p.tag === tag;
+    if (show) { if (!map.hasLayer(markers[p.id])) markers[p.id].addTo(map); }
+    else { if (map.hasLayer(markers[p.id])) markers[p.id].remove(); }
+  });
+}
+</script>
+</body>
+</html>

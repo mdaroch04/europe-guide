@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central Europe Travel Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --cream: #F9F5EE;
+    --ink: #1A1610;
+    --gold: #B8871A;
+    --muted: #7A7060;
+    --border: #E2D9C8;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(184,135,26,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(184,135,26,0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 630px;
+    margin: 0 auto;
+    padding: 56px 32px 80px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 40px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+  }
+  .header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 600;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .header h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .header p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  /* ── CITY CARDS ── */
+  .city-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .city-card {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .city-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+    border-color: transparent;
+  }
+  .city-card:hover .card-arrow { opacity: 1; transform: translateX(0); }
+  .city-card:hover .color-bar { height: 6px; }
+
+  .color-bar {
+    height: 4px;
+    width: 100%;
+    transition: height 0.22s ease;
+    flex-shrink: 0;
+  }
+  .bar-munich   { background: linear-gradient(90deg, #1B3A6B, #2E5FA3); }
+  .bar-vienna   { background: linear-gradient(90deg, #8B1A2B, #B22234); }
+  .bar-salzburg { background: linear-gradient(90deg, #1B4D2E, #2E7D4F); }
+  .bar-lisbon   { background: linear-gradient(90deg, #1A5F6B, #247A89); }
+  .bar-algarve  { background: linear-gradient(90deg, #0B4F6C, #1A7BA4); }
+
+  .card-inner {
+    padding: 24px 22px 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .city-flag { font-size: 1.8rem; margin-bottom: 10px; display: block; line-height: 1; }
+
+  .city-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .city-card.munich   .city-name { color: #1B3A6B; }
+  .city-card.vienna   .city-name { color: #8B1A2B; }
+  .city-card.salzburg .city-name { color: #1B4D2E; }
+  .city-card.lisbon   .city-name { color: #1A5F6B; }
+  .city-card.algarve  .city-name { color: #0B4F6C; }
+
+  .city-country {
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .tips-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    margin-bottom: 20px;
+  }
+  .tips-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #4A4238;
+  }
+  .tip-icon { flex-shrink: 0; font-size: 0.82rem; margin-top: 1px; }
+
+  .card-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+  .cta-text { font-size: 0.76rem; font-weight: 500; color: var(--ink); }
+  .card-arrow {
+    font-size: 1rem;
+    opacity: 0.4;
+    transform: translateX(-4px);
+    transition: opacity 0.22s, transform 0.22s;
+  }
+
+  @media (max-width: 680px) {
+    .page-wrap { padding: 36px 18px 56px; min-height: unset; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <div class="header">
+    <h1>Our <em>Europe</em> Trip</h1>
+    <p>Five destinations, five guides. Browse the tips below, then click a card to explore all the places we can visit and help decide what to add to the itinerary.</p>
+  </div>
+
+  <div class="city-grid">
+
+    <!-- MUNICH -->
+    <a class="city-card munich" href="munich_guide_v8.html">
+      <div class="color-bar bar-munich"></div>
+      <div class="card-inner">
+        <span class="city-flag">🇩🇪</span>
+        <div class="city-name">Munich</div>
+        <div class="city-country">Bavaria, Germany</div>
+        <ul class="tips-list">
+          <li><span class="tip-icon">🎫</span><span>State museums — including the Pinakotheks and Deutsches Museum — are <strong>free every Sunday.</strong></span></li>
+          <li><span class="tip-icon">🚂</span><span>The <strong>Bayern-Ticket</strong> covers all regional trains in Bavaria for the day — perfect for cheap Alpine day trips.</span></li>
+          <li><span class="tip-icon">🌸</span><span>Late May brings the <strong>Stadtgründungsfest</strong> near Marienplatz — free outdoor festival in the city centre.</span></li>
+        </ul>
+        <div class="card-cta">
+          <span class="cta-text">Explore Munich guide</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- VIENNA -->
+    <a class="city-card vienna" href="vienna_guide_v2.html">
+      <div class="color-bar bar-vienna"></div>
+      <div class="card-inner">
+        <span class="city-flag">🇦🇹</span>
+        <div class="city-name">Vienna</div>
+        <div class="city-country">Austria</div>
+        <ul class="tips-list">
+          <li><span class="tip-icon">🎫</span><span>The <strong>Vienna Pass</strong> gives free entry to 60+ attractions — worth it if you plan to visit Schönbrunn and the Belvedere.</span></li>
+          <li><span class="tip-icon">🎻</span><span>Late May overlaps with the <strong>Wiener Festwochen</strong> — a city-wide arts festival with many free outdoor events.</span></li>
+          <li><span class="tip-icon">🚋</span><span>The <strong>Ringstraße trams</strong> pass every major landmark — a day ticket doubles as a free sightseeing tour.</span></li>
+        </ul>
+        <div class="card-cta">
+          <span class="cta-text">Explore Vienna guide</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- SALZBURG -->
+    <a class="city-card salzburg" href="salzburg_guide.html">
+      <div class="color-bar bar-salzburg"></div>
+      <div class="card-inner">
+        <span class="city-flag">🇦🇹</span>
+        <div class="city-name">Salzburg</div>
+        <div class="city-country">Austria</div>
+        <ul class="tips-list">
+          <li><span class="tip-icon">🎫</span><span>The <strong>Salzburg Card</strong> covers free entry to all major sights plus unlimited public transport — almost always worth it.</span></li>
+          <li><span class="tip-icon">🎶</span><span>The <strong>Pfingstfestspiele</strong> classical music festival runs in late May inside the famous Festival Halls.</span></li>
+          <li><span class="tip-icon">🏔️</span><span>The Old Town is very compact and walkable — save your transport budget for the Alpine day trips.</span></li>
+        </ul>
+        <div class="card-cta">
+          <span class="cta-text">Explore Salzburg guide</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- LISBON -->
+    <a class="city-card lisbon" href="lisbon_guide.html">
+      <div class="color-bar bar-lisbon"></div>
+      <div class="card-inner">
+        <span class="city-flag">🇵🇹</span>
+        <div class="city-name">Lisbon</div>
+        <div class="city-country">Portugal</div>
+        <ul class="tips-list">
+          <li><span class="tip-icon">🎫</span><span>The <strong>Viva Viagem 24hr pass</strong> (€6.80) covers all trams, funiculars, buses, and the metro — buy at any metro station on arrival.</span></li>
+          <li><span class="tip-icon">🎉</span><span>Late May kicks off <strong>Santo António festival</strong> preparations — bunting, sardine grills on street corners, and a festive neighbourhood atmosphere.</span></li>
+          <li><span class="tip-icon">🌊</span><span>The Atlantic coast is <strong>45 minutes away</strong> by train — surf lessons, turquoise beaches, and Sintra all within easy day-trip reach.</span></li>
+        </ul>
+        <div class="card-cta">
+          <span class="cta-text">Explore Lisbon guide</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- ALGARVE -->
+    <a class="city-card algarve" href="algarve_guide.html">
+      <div class="color-bar bar-algarve"></div>
+      <div class="card-inner">
+        <span class="city-flag">🇵🇹</span>
+        <div class="city-name">Algarve</div>
+        <div class="city-country">Southern Portugal</div>
+        <ul class="tips-list">
+          <li><span class="tip-icon">🌡️</span><span>Late May is the <strong>sweet spot</strong> — 25°C, sea at 19–20°C, zero peak-season crowds, and long evenings with sunset after 9pm.</span></li>
+          <li><span class="tip-icon">🚂</span><span>The <strong>regional train</strong> links Faro, Lagos, Tavira, and Silves cheaply — no car needed for the main coastal towns (€3–7 most journeys).</span></li>
+          <li><span class="tip-icon">🏖️</span><span><strong>Benagil Cave and Praia da Marinha</strong> rank among Europe's most beautiful coastal scenery — book boat tours ahead as they fill quickly in May.</span></li>
+        </ul>
+        <div class="card-cta">
+          <span class="cta-text">Explore Algarve guide</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salzburg Travel Guide</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --grn:#1B4D2E;--grn-mid:#2E7D4F;--grn-light:#D6EDE0;
+  --gold:#C9961A;--gold-light:#FDF3D8;
+  --cream:#FAF8F3;--white:#fff;
+  --text:#1A1A1A;--text-mid:#555;--text-light:#888;
+  --border:#E0DDD6;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Source Sans 3',sans-serif;
+  --header-h:64px;--filter-h:50px;
+}
+.header-inner{display:flex;align-items:center}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--cream);color:var(--text);font-size:14px}
+.site-header{height:var(--header-h);background:var(--grn);display:flex;align-items:center;padding:0 24px;flex-shrink:0;position:relative;z-index:200}
+.site-header h1{font-family:var(--serif);font-size:1.45rem;color:#fff;font-weight:700;white-space:nowrap}
+.site-header p{color:#90c8a4;font-size:.78rem;margin-left:14px;display:flex;gap:10px;flex-wrap:wrap}
+.back-btn{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:var(--sans);font-size:.75rem;font-weight:600;padding:6px 14px;border-radius:20px;text-decoration:none;transition:background .18s;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.22)}
+.header-tag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#c8f0d4;font-size:.72rem;padding:3px 10px;border-radius:20px}
+.filter-bar{height:var(--filter-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px;position:relative;z-index:150;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.filter-label{font-size:.72rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;white-space:nowrap}
+.filter-btn{background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);font-size:.76rem;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--sans);transition:all .18s;white-space:nowrap}
+.filter-btn:hover,.filter-btn.active{background:var(--grn);border-color:var(--grn);color:#fff}
+.count-badge{background:var(--grn-light);color:var(--grn);font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:10px;margin-left:auto;white-space:nowrap}
+.layout{display:flex;height:calc(100vh - var(--header-h) - var(--filter-h));overflow:hidden}
+.map-panel{width:42%;flex-shrink:0;position:relative;border-right:3px solid var(--gold)}
+#map{width:100%;height:100%}
+.cards-panel{flex:1;overflow-y:auto;padding:16px;background:var(--cream)}
+.cards-panel::-webkit-scrollbar{width:6px}
+.cards-panel::-webkit-scrollbar-track{background:#f0ede6}
+.cards-panel::-webkit-scrollbar-thumb{background:#c0bbb0;border-radius:3px}
+.places-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.place-card{background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
+.place-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.place-card.hidden{display:none}
+.place-card.highlighted{outline:3px solid var(--gold);outline-offset:0}
+.slideshow{position:relative;height:190px;overflow:hidden;background:var(--grn);flex-shrink:0}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .4s ease}
+.slide.active{opacity:1}
+.slide img{width:100%;height:100%;object-fit:cover;display:block}
+.slide-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.42);backdrop-filter:blur(3px);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .18s;line-height:1}
+.slide-btn:hover{background:rgba(0,0,0,.7)}
+.slide-prev{left:7px}.slide-next{right:7px}
+.slide-dots{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:10}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45);cursor:pointer;transition:background .18s}
+.dot.active{background:#fff}
+.cat-badge{position:absolute;top:9px;left:9px;background:rgba(27,77,46,.82);backdrop-filter:blur(4px);color:#c8f0d4;font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:14px;text-transform:uppercase;letter-spacing:.05em;z-index:10}
+.daytrip-badge{background:rgba(201,150,26,.88);color:#fff}
+.price-badge{position:absolute;bottom:26px;right:8px;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);color:#fff;font-size:.72rem;font-weight:600;padding:4px 8px;border-radius:7px;z-index:10}
+.price-free{color:#7de0a0}
+.card-body{padding:12px 14px;display:flex;flex-direction:column;flex:1}
+.card-title{font-family:var(--serif);font-size:1.15rem;font-weight:800;color:var(--grn);margin-bottom:1px;line-height:1.25}
+.card-hint{font-size:.65rem;color:var(--text-light);margin-bottom:1px}
+.card-category{font-size:.72rem;color:var(--text-light);margin-bottom:8px;font-style:italic}
+.card-desc{font-size:.95rem;color:var(--text-mid);line-height:1.6;margin-bottom:10px}
+.details-toggle{display:flex;align-items:center;gap:6px;background:none;border:1.5px solid var(--grn-light);color:var(--grn-mid);font-size:.75rem;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:var(--sans);transition:all .18s;width:100%;justify-content:center;margin-top:auto}
+.details-toggle:hover{background:var(--grn);color:#fff;border-color:var(--grn)}
+.details-toggle .arrow{transition:transform .25s;display:inline-block}
+.details-toggle.open .arrow{transform:rotate(180deg)}
+.details-body{display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px}
+.details-body.open{display:block}
+.info-row{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid #F0EDE6;padding:5px 0;gap:4px}
+.info-row:last-child{border-bottom:none;padding-bottom:0}
+.info-label{font-size:.68rem;font-weight:600;color:var(--grn);text-transform:uppercase;letter-spacing:.04em;padding-top:1px;line-height:1.4}
+.info-value{font-size:.76rem;color:var(--text);line-height:1.45}
+.info-row.tip{background:var(--gold-light);border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.tip .info-label{color:var(--gold)}
+.info-row.may{background:#EDF7ED;border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.may .info-label{color:#2E6B3E}
+.map-legend{position:absolute;bottom:12px;left:10px;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.72rem;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.legend-item:last-child{margin-bottom:0}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0}
+@media(max-width:900px){html,body{overflow:auto;height:auto}.layout{flex-direction:column;height:auto;overflow:visible}.map-panel{width:100%;height:320px;border-right:none;border-bottom:3px solid var(--gold)}.places-grid{grid-template-columns:1fr}.site-header p{display:none}.card-hint{display:none}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <h1>🇦🇹 Salzburg Travel Guide</h1>
+    <p>
+      <span class="header-tag">🌸 Late May tips</span>
+      <span class="header-tag">📸 Photo slideshow</span>
+      <span class="header-tag">📍 17 places</span>
+    </p>
+  </div>
+  <a class="back-btn" href="index.html">← Back to all cities</a>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="filterCards('all',this)">All Places</button>
+  <button class="filter-btn" onclick="filterCards('city',this)">City &amp; Landmarks</button>
+  <button class="filter-btn" onclick="filterCards('culture',this)">Museums &amp; Culture</button>
+  <button class="filter-btn" onclick="filterCards('church',this)">Churches</button>
+  <button class="filter-btn" onclick="filterCards('daytrip',this)">Day Trips</button>
+  <button class="filter-btn" onclick="filterCards('salzburgcard',this)">🎫 Salzburg Card</button>
+  <button class="filter-btn" onclick="filterCards('free',this)">🆓 Free Entry</button>
+  <span class="count-badge" id="count-badge">17 places</span>
+</div>
+
+<div class="layout">
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1B3A6B"></div> City &amp; Landmarks</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#5C3317"></div> Museums &amp; Culture</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4A0A20"></div> Churches</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a4a1a"></div> Day Trips</div>
+      <div class="legend-item" style="border-top:0.5px solid #ddd;margin-top:5px;padding-top:5px"><span style="font-size:.7rem;color:#888">🎫 Salzburg Card = 7 places included<br>🆓 Free Entry = 11 places with free access</span></div>
+    </div>
+  </div>
+  <div class="cards-panel" id="cards-panel">
+    <div class="places-grid" id="places-grid"></div>
+    <div style="text-align:center;padding:16px 0 6px;font-size:.75rem;color:var(--text-light)">Salzburg Travel Guide · Entry prices approximate 2024/25 · Gute Reise! 🎶</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const P = [
+  {id:1,name:"Salzburg Old Town (Altstadt)",emoji:"🏙️",cat:"UNESCO World Heritage Site · City Centre",tag:"city",priceLabel:"Free",salzburgcard:false,free:true,
+  lat:47.7981,lng:13.0501,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHeWbopTH4GQmJONCOf1N2oO4DlrrHv2VuDOyvN12qsS88QjLsEGz2SkTeVF8FD3U2l803rwck9EU-0IZIvrIbYjjtx0PF6OggVIAc_CAOUqzRHhD_nxGjrdF4aHLpK1-3oGomz9QeV65u8zQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHv0-azU_YBXRR7gAe_x08BokavTfdPBDCXlBamCFowT_uxtlxzK6BLRhFV2iyO11INNQ_3cQOXNPRvxY-qFney07jBQk6Y8Y6WCJtI_i8LoRC57VMQeWm8LKYC0Tmh_BjfHmZOgx0G4gmy7ESgC6pz=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE4KzUluejy9iBi1w7n34h0_dLW29Vqp5hUyWt2YzhFCbUvitywnlMVna4RqiTKdggqTsA1l0ll9OUZod_fEoUSztvXm5YhKthW83pOVCLD6TuOBLqwoHe3uFgRO-rC-G8VvN0x13Y0XYWotw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF9Pcdif1ub0Sx0kTQHRo0sB-T_Fbra0FTWJ71vMYXL-Xfcg70qIn_8HAxq2zJ1-izbIu4Hp235Ac52paLBEbr6R2_ekw4DmT5Zm8Y3DqQ9p3lDeCYeJyJcBm4oYLlABgy6WMJVkndaEAatzeU=s800-w800-h500"],
+  desc:"One of the best-preserved Baroque old towns in the world and a UNESCO World Heritage Site since 1997. Narrow lanes, ornate facades, hidden courtyards, and the constant backdrop of Fortress Hohensalzburg make it an exceptionally atmospheric place to wander. Mozart was born here — you feel his presence on every corner.",
+  distance:"This IS the centre — Mozartplatz is the main reference square",transport:"Most of the old town is walkable · Bus: multiple city lines to Theatergasse/Mozartplatz",cost:"Free to explore the streets · Salzburg Card covers all city buses",time:"Half-day to full day",
+  tip:"Pick up the Salzburg Card (24h €29 / 48h €38 / 72h €44) for free entry to most major attractions plus unlimited public transport. Excellent value if visiting 3+ paid sites.",may:"Late May is one of the best times — flowers on window boxes, outdoor cafés buzzing, and crowds not yet at peak summer levels."},
+
+  {id:2,name:"Fortress Hohensalzburg",emoji:"🏰",cat:"Medieval Fortress · Festungsberg Hill",tag:"culture",priceLabel:"€15.70 / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.7949,lng:13.0477,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHeWbopTH4GQmJONCOf1N2oO4DlrrHv2VuDOyvN12qsS88QjLsEGz2SkTeVF8FD3U2l803rwck9EU-0IZIvrIbYjjtx0PF6OggVIAc_CAOUqzRHhD_nxGjrdF4aHLpK1-3oGomz9QeV65u8zQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHv0-azU_YBXRR7gAe_x08BokavTfdPBDCXlBamCFowT_uxtlxzK6BLRhFV2iyO11INNQ_3cQOXNPRvxY-qFney07jBQk6Y8Y6WCJtI_i8LoRC57VMQeWm8LKYC0Tmh_BjfHmZOgx0G4gmy7ESgC6pz=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE4KzUluejy9iBi1w7n34h0_dLW29Vqp5hUyWt2YzhFCbUvitywnlMVna4RqiTKdggqTsA1l0ll9OUZod_fEoUSztvXm5YhKthW83pOVCLD6TuOBLqwoHe3uFgRO-rC-G8VvN0x13Y0XYWotw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEeHXm1PWHxYACgHPPuM4Z6UWu0WynQZ8GGBBJOwbhjVQGcPCrNSX5hnSmFX1NLXz50ESW9LP3GaT3bZ9PoD-TILbXqJmMMSQtpkII9J3-N-YLBL0PYcD3n9GKJ8F6LvhpfzDNc8yPRaH_S=s800-w800-h500"],
+  desc:"One of the largest and best-preserved medieval castles in Europe, perching dramatically above the old town at 542 metres. Built in 1077 and expanded over centuries, it offers 360-degree panoramic views of Salzburg, the Alps and the Salzach valley. The fortress museums, state rooms and torture chamber make for a compelling 2-hour visit.",
+  distance:"500m from Mozartplatz — on the hill above the old town",transport:"Funicular (Festungsbahn) from Festungsgasse — included with fortress ticket or Salzburg Card",cost:"Funicular + full fortress: ~€15.70 · Free with Salzburg Card",time:"1.5–2.5 hours",
+  tip:"Go early morning or after 4pm to avoid the bulk of tour groups. The panoramic terrace view at sunset is exceptional. The Salzburg Card includes the funicular and entry.",may:"Clear late-May skies often allow views all the way to the Berchtesgaden Alps."},
+
+  {id:3,name:"Mirabell Palace & Gardens",emoji:"🌺",cat:"Baroque Palace & Gardens · New Town",tag:"city",priceLabel:"Free gardens / Concerts €35–55",salzburgcard:false,free:true,
+  lat:47.8054,lng:13.0420,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHW5rbqvXxbHLCPDQDfg0dvziY3MBY1bfk-p33UI_LXUy68PXdQ2SsMSa3TqBsK90ueVODkYMqIkmIi0jyhftkpsnXgf-1bskdcG5aMr5GUTIJiA3V_uhJaxtIdCFACyy5hQgb1Xw__g50cstw3x4eWgA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGySeKKg0BidZViXmIKJwo7-Dh23yQi0u_f2KD-jyYtfNce8YkHjGMA0m_Ghuz9eJuFlycBd2cv9luOp8Kbn7JBQ2oyZZjpa6bfVa5lueIg-r9kkxWPzEefhOg3q5JwcnRnHiRiTTDg9m6dVw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE0Ti1DbJgAhYDfjkt7Q0v0JGSV5qpkWhPQ36l0_6O4hV-5fYZLYI9br8BNoF2tP4e-eIJ_l8VUuN3ZWImnFLNR584ytxjL4Jwta5igs-141wbhXDShLvSY48gvNW59WweoJlXOxhQgWkzRSg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFW9dASWh8zMtaYnhLyaKzKwKxKcGTULT0fOziewgunVGaoJ7OOQjfwLXMFT1Oi5xMUMMX9J_y8KjCt_sSd4k6Du1YZjJRNOEk9vvK6Wt3XCCe3OGBh7X8_6FWeP_obN-sR7jAhQxYisvE_XvU3vKgrow=s800-w800-h500"],
+  desc:"Built in 1606 by the Archbishop for his beloved, Mirabell Palace is now Salzburg's civil registry and concert hall famed for its Mozart concerts in the Marble Hall. The immaculately kept Baroque gardens outside are freely accessible and beloved worldwide from their appearance in The Sound of Music. The view from the gardens toward Fortress Hohensalzburg is one of Salzburg's most iconic.",
+  distance:"1.2 km from Mozartplatz — 15-minute walk across the Staatsbrücke bridge",transport:"Walk from old town across the Staatsbrücke · Bus 1/2/3/4/5/6 to Mirabellplatz",cost:"Gardens: Free · Palace interior: Free (public areas) · Mozart concerts: ~€35–55",time:"30–60 minutes",
+  tip:"The Dwarf Garden (Zwerglgarten) — 28 quirky marble dwarf statues — is tucked to the side and often missed. The gardens face east, so morning light is best for photos.",may:"Peak bloom for the formal rose and flower beds is typically late May — the gardens are at their most photogenic."},
+
+  {id:4,name:"Salzburg Cathedral (Dom) & Residenzplatz",emoji:"⛪",cat:"Baroque Cathedral & Grand Square · Old Town",tag:"church",priceLabel:"Free / €6 Cathedral Museum",salzburgcard:false,free:true,
+  lat:47.7979,lng:13.0466,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFqByXPnucwRjdUpcaUKHbRxyFbJuN_dv431w-EZCPUstoNYMAZfLtVy-kuZunTO3dHOtJPNiCPQFDqVA_9oXGp_7DfGGcfgh9SH2g5-mg4MP9SyHTSPE1e07uiKXUWNg5htF0XulaCYGbbeQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHCs3Ka54yeq6_vNrAWgxi_I5kWdV0TqXP8p1S_lfbvYwO2fnHLMCPgbU086jM5_iEQCrqVuBtAu9G6FSnlFnnNdR9CoZwXNj7ctu_I685Pm9PSxs1UM8M9ILpVcqDbD9a_qGrANyleiMah=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHPqUPZiXbOwGOIjhIiWhfYvpJRO1Yp07XXTtaYXavNiyz7Oh8DFOG8OYEjW1ZDyK6ixWo0zgD4DZPVgfpEN_GcfECTjOS9KMURQWjqsv_NrpL-o03OOz1m-QqMoePYjWD71xDImp9AJCgeFTQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGHBaF0RXzyv7G67gfOox6q3D28YbkXTMhzR_5AFLRPFrwyf6pIhbwkbU7rufLMKv5Eaqrxx7592_JnuW6vcntewziMG-JjIvc--6OIzYqaVTYL3fx4KXksxZiWt2BDwpeKueegL_qQ6WGhvpA=s800-w800-h500"],
+  desc:"One of the greatest Baroque cathedrals north of the Alps, built 1614–1628, where Mozart was baptised in 1756 — the original font still stands inside. The cathedral opens directly onto Residenzplatz, Salzburg's grandest square, anchored by the enormous 17th-century Residenzbrunnen fountain — the largest Baroque fountain outside Italy.",
+  distance:"City centre — Domplatz/Residenzplatz, adjacent to Mozartplatz",transport:"Walk from anywhere in the old town",cost:"Cathedral: Free · Cathedral Museum: ~€6 · Residenzplatz: Free",time:"45–60 minutes",
+  tip:"Try to time your visit at noon when the cathedral organ plays. The Residenzplatz fountain is the square Maria splashes through in The Sound of Music — a fun spot to find.",may:"Residenzplatz hosts outdoor events and festival preview performances from late May — check the programme."},
+
+  {id:5,name:"Getreidegasse",emoji:"🛍️",cat:"Historic Shopping Street · Old Town",tag:"city",priceLabel:"Free / €12 Mozart's Birthplace",salzburgcard:false,free:true,
+  lat:47.8000,lng:13.0424,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGLEfs6jsjhg258jM3Sn9_fRWaptwA9N__hGyw4-fcmrYN2hhNv0lBTE8Bjjkz0P84k3LnVVmWi747gllbGcpzeyqOfLKVFcpzmzdb2F2YRTlodkGJeam9SHrNN0Sd2SInuN5xkMt9OGjNnc4hZQF1t=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE-rpVU4k8oi5Nx7Y85NGRSp4Jgw17Q6cFLSvIhXx9oQRrFDnYDUJXiuRjV17i1CyjojB7m4BYwNAh_WIcATRw31zZSM0sWmsmKjh_Ec3NgiOTh_bQCkJA0PItFrfHGCAhvRcntxsNVRvLrQA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHxBCcf8Scp-9-FpnFQhCpnl5GM8gE8AkhGs0G2bEljKbOmMJTlR11XG0uOKUvKVWdnsgwdrHWk16GRtbDTUjz__tTuc-U95LoJVE0wfF-r1-WxTDzjhC0XKM0NQmhEavPo545PmlelSRQW9eSFM0LOKw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE5FzNGwG6t_e6879zj86ulLjLKRHubBOGx3GMFjxy7OBSPNeUsA9KDQTbZyGV6_Sw3gmr02juPTZWx42JREMHLWbyN6ZQpqv5sn_yG1XySwxV6wLz8npZwZb-cbQe6Cx4OMs_39MqaQ6crTA=s800-w800-h500"],
+  desc:"Salzburg's most famous street, lined with pastel merchant houses decorated with ornate wrought-iron guild signs stretching overhead. Mozart's birthplace (Mozarts Geburtshaus) sits at number 9. The street is as much an architectural spectacle as a shopping destination, with independent boutiques tucked into 700-year-old buildings.",
+  distance:"City centre — running through the heart of the old town",transport:"Walk from Mozartplatz (5 minutes west)",cost:"Free to walk · Mozart's Birthplace: ~€12",time:"30–60 minutes to stroll · Add 1 hour for Mozart's Birthplace",
+  tip:"Look up constantly — the guild signs are the real attraction. Exit via the covered passages (Durchhäuser) that connect to parallel streets for a less-touristy route.",may:"Street artists and musicians often perform here in late May — a lively atmosphere most evenings."},
+
+  {id:6,name:"Mozart's Birthplace",emoji:"🎹",cat:"Museum · Old Town (Getreidegasse 9)",tag:"culture",priceLabel:"€12 adults / €3.50 children / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.8000,lng:13.0436,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFvIPC0KRdoaERbgiZ8J3zODfALN68H22G0AslTJWHd6-t6LUKeC5estVMlAErRcw9AO6eyig67SuSAeBISwKskPntpUVp335twQzFsdI6gLcX9oNfezoEpTRWKZxG-TW9kpDJgBHoFWhcaDQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGZ0JUbSXoQ3dMIQ26eQUFNVXIb93y5pWlzodO43pvPi9g8A27L0hr18H0PBWb1Iceh7SxU11JmSbRBovaitCfzTYhJf_0PAGfhT6IgXT-9NmMFo8AOob9ZcWtnyP1tufL8GbIx7O8bwoFXfw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEkMmqw7GxyI_MBjXLpEISiXsCzwOeSdME8P2aSjxiBTAw4o6Lji8GPrwgwb4e30ArvPJc3yAMN2NcFfpkWjYXRjvL7Ddyy2-Ji5bcMwu9c6ZBeia14Io4F54TfRrnQM0r0ViWIOEiUarOZ7w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEwfbekupHWOOLLKdEkYUO5-ZOSIjVxOnQYIwLrrdgsBgLmdKhh3YWpI8k4r3PkmxzuheeAfVMx5SZeVQGw2NnQlLD9RmjCGhL95U3lVMS1wC3tRwshPBQSG9y-D4eiIOXj_-balkaq0ze6m2M=s800-w800-h500"],
+  desc:"The house on Getreidegasse 9 where Wolfgang Amadeus Mozart was born on 27 January 1756 is now a fascinating museum spread across five floors. Original instruments, portraits, letters and his tiny childhood violin bring the genius to life. Standing in the room where one of history's greatest composers was born is genuinely moving.",
+  distance:"City centre — Getreidegasse 9",transport:"Walk from Mozartplatz (5 minutes)",cost:"Adults: ~€12 · Children (6–14): ~€3.50 · Free with Salzburg Card",time:"45–75 minutes",
+  tip:"Use the free QR-code self-guided tour on your smartphone. Visit early (opening at 9am) to avoid groups. The separate Mozart Residence (Wohnhaus) across the river also included with Salzburg Card.",may:"A good option if late-May showers arrive mid-day. Covered and compact, it fits nicely between outdoor activities."},
+
+  {id:7,name:"St. Peter's Abbey & Cemetery",emoji:"⛩️",cat:"Historic Abbey · Old Town",tag:"church",priceLabel:"Free / €2 catacombs",salzburgcard:false,free:true,
+  lat:47.7976,lng:13.0444,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqHD7Zsx41_Th10V6eziqoT4teEb_4pDZWELqKe1ona5J6F6rXd_GpJhB_ae02Fl9HoEZz2CdnhhP1xAvze-VsADmvn3I3m_HLI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFuhXrsRYjL4OGFd1mhs3rv3Hx4Itjz0UOvH64yhAJwYogqHax9WzAoiK8Nm1Y-EXZ-YCzErQSCTaHur6-Z5q5ewwYFfn8yaxPhr_zEbNd3KLevdfEJf8StQowdUCxWRYfXG6lRQRtr9DKtOQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHcvFURjHI711gyzGoTeW_agt2JtXmcJUiFmyRxJta1TDjxj29CFT4RO2uFA0FcXAqs9kIgCfAQfv6VwodmDycwYRifboEbiq9HHzWfDOZ8pwnWO9XD2Z84kVZ6d8nixECgGbZNxEMypm_a=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFp8nKYdD9qISqTmYUsU3-9Vq7_7Vz9AvfWw3gLNTVyg1m6HfBfIRtgDxmUd95r2-SGK9wf4xFc54xgYaUx8I1vSZCOTr7-ldPMivjpFCN_4QqsEvUEhSk63YFI8ReWJ6CIjw84WHEPT04r38qJGMN8AA=s800-w800-h500"],
+  desc:"Founded in 696 AD, St. Peter's is one of the oldest monasteries in the German-speaking world and still an active Benedictine community. The Rococo church dazzles with gilded altars and ceiling frescoes. The adjacent cemetery — carved into the sheer Mönchsberg rock face — is where the Von Trapp family's Sound of Music escape scene was filmed.",
+  distance:"City centre — at the base of the Mönchsberg cliff, near the cathedral",transport:"Walk from Mozartplatz (5 minutes)",cost:"Church: Free · Catacombs: ~€2",time:"30–45 minutes",
+  tip:"Don't skip the cemetery — grave markers pressed against the rock face with mountain flowers growing between them make it one of Salzburg's most beautiful spots. The catacombs are worth the small fee.",may:"Spring flowers bloom among the grave markers in late May, making the cemetery particularly atmospheric."},
+
+  {id:8,name:"DomQuartier Salzburg",emoji:"🏛️",cat:"Royal Rooms & Cathedral Museum · Old Town",tag:"culture",priceLabel:"€15 adults / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.7985,lng:13.0456,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqGZaJQ8c5DXpjh0kx48u3Q3IVRPHgk2jV8D1eklnGUj_AMlfnMQcOLoCYJlFdPBUpMRSWuWHz6MwA7Y3YyYPerm0awvw2C6-kU=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGJ6Ydsuz0UKYv6PokTS3N30Xb-umwYEZek_Bi8dSol49N4pxXKEbfjve7cuDggcinqHkDHecOzgyt31B9xDMS9CONW6k0vYAjrBeKC-NsqGupQdy-wjJqC7hcrHVoIf8j76DvztK6twkX_Xk4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG-FP74XWqKyJ3SBo8ZdL0ed66sml6oX5W04t-HaDOTWipH-HYBpk4GEsW_-MByFfdwwWG8IVFP1ATguYJr3vWdlmcor5NWvyOIDQvfAytd6R86mZg_-nz2uVggjsTNXu9GTfdYPTvTEINQUTiQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEUYWQvi_6nagqUSwdVZQXtbSPdcDzB9jV7dJtye1sZ7MKgoB9dzyodROeMXKpdgoh9wIWsatsrw4p-URkZcaEFKlQoZAnuZ7-szXJAwI9MBvnrRjkZ0sYI3cnAY6ENoedQ74Wd0wRHW_G1wg=s800-w800-h500"],
+  desc:"An interconnected museum route through the Archbishop's Residenz state rooms, Cathedral galleries and palace apartments — all linked by passages giving a sense of Salzburg's extraordinary ecclesiastical power and wealth. Highlights include opulent tapestried State Rooms, a world-class Baroque and medieval art collection, and a rooftop walkway over the cathedral with stunning city views.",
+  distance:"City centre — Residenzplatz 1",transport:"Walk from Mozartplatz (2 minutes)",cost:"Adults: ~€15 · Free with Salzburg Card · Closed Tuesdays",time:"2–3 hours",
+  tip:"Download the free audio guide from the museum website before your visit. The rooftop walk between the Residenz and the Cathedral is a highlight — don't rush through it.",may:"An excellent wet-weather option. The rooftop walk is especially pleasant in dry late-May weather with clear Alpine views."},
+
+  {id:9,name:"Hellbrunn Palace & Trick Fountains",emoji:"💦",cat:"Baroque Palace & Gardens · South Salzburg",tag:"culture",priceLabel:"€15.50 adults / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.7621,lng:13.0601,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFk5PCHQ0TPaWEy-GxAAtKrdZZ-yhzYY1N8G8yiXJPOwy99lmYWdXdFVneXN4WQ9N-GnkQvqZnWfYalY4n2OJDWGFkJ0AjYvkvt1QzACvvy6oeS9rjuF-K1EaqRn-4dAYKa9x8hKcUbbUu28FqIg77mag=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGSAnjDyOQMl0xoH1Zp2FpNLV-JbxFjkg52a3v2vo6DBjcGoYfTpi6lDHzx9U79-4SHEvy8aTbvieX0vhDZiYor675qNELWJyKvK-EP4-zd0VAKq4RcktIraER4YYRZgdxAh7PjwR3etQsz=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFL50NmiNfwQguzoG6zqIe9zwpuxGcxJhe4vs8wQ0qyDkeYil6Q4cGAWBAuVoFU3FR4UetpPWQtoicbw1v6J9TLoZXyHPu1yULtEsLDDDMQyyVUGEhZ0qtOc9tbpsYvSnbGHqL3tSfiKpxYuC4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF_RQTQjlIuqxleBrevXPx6-BWw-I4PtsXEoPQyjSWASjM8Ae7Bx-3jAXzyOoq2v84s_8PNR2l-J6Lwxbh6kdy6Sxa0jnuod0_-GTcqFqNtbdO4zc1Yfozm35T4kp7z5AU5IFu2jT3tgoAeNaU=s800-w800-h500"],
+  desc:"A 17th-century pleasure palace built as a summer retreat — and the site of one of the world's oldest garden features: an elaborate system of hidden water jets designed to drench unsuspecting guests. The trick fountain tour is genuinely hilarious and interactive. The adjacent formal gardens are beautiful, and The Sound of Music's famous gazebo is here.",
+  distance:"6 km south of the old town",transport:"Bus 25 from Salzburg Hauptbahnhof or Rathaus — about 20 minutes. Bus also included with Salzburg Card.",cost:"Adults: ~€15.50 (palace + trick fountains) · Free with Salzburg Card",time:"1.5–2.5 hours",
+  tip:"Wear clothes you don't mind getting slightly wet! The trick fountains run only in season (April–October). The Hellbrunn Zoo next door is one of Europe's most scenic and also covered by the Salzburg Card.",may:"Perfect in late May when the formal gardens are in full bloom and the fountains are operating at full capacity."},
+
+  {id:10,name:"Museum of Modern Art (Mönchsberg)",emoji:"🎨",cat:"Modern Art Museum · Mönchsberg Cliff",tag:"culture",priceLabel:"€8 adults / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.8009,lng:13.0384,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqHdm8WywjMI9EJw6gBIOHCx8_920yTOlY70HxaS5xRsmzvdoJ2wUzYIyF5u8IcOP_mdi7cQMBpGlE_wbK8XeWp2wZTjUH7QJrs=s800-w800-h500","https://lh3.googleusercontent.com/places/ANXAkqF2l-5e3fwpjT0qsqbnGRf7kgZVU9L-ugEnUO7LTqWA66y-oX5yb8HUJYYK1mI1kWLt8sr8gVmGCkSTG7Tr0zBM1tpgXNC7nd4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGeShDpzUDIEv_5774sa-xAM-DG5g6KbUHOECELMZzcjfTdXO0L-cbBnYZ6n8vAdldBh8GEI1VWlzDbqboq0h8N1riG0EzNaV12xfFZ0yCeUgD9QAvLIww6O_dqjo7N4QoEWI3AMjguc5taWA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHNcj2yq5K5mvWWVMQG3-fxQsiopwWRB5lMdg2AnGqZRdVBQTb-NjwjkELKtch1gPkfyxR0sQWPjOZ-GO84HZVDqznK7GKx4NIwTw1laUTf8f_28G7_ICLdqg_YA1xBZKzUHNt1vrJKcYmFHw=s800-w800-h500"],
+  desc:"Perched dramatically on top of the Mönchsberg cliff, this striking contemporary building houses a strong collection of 20th and 21st century art. The building itself — all sharp lines against ancient rock — is an architectural statement. The real draw beyond the art is the terrace café with arguably the best panoramic view in Salzburg.",
+  distance:"600m from old town — cliff elevator access from Gstättengasse 13",transport:"Cliff elevator (Mönchsberglift) from Gstättengasse — included with Salzburg Card",cost:"Adults: ~€8 · Free with Salzburg Card · Cliff elevator included with card",time:"1–2 hours",
+  tip:"Even if modern art isn't your thing, the elevator ride and terrace café are worth it for the view alone. The café is surprisingly affordable. Closed Mondays.",may:"The terrace is one of the best spots in the city for a morning coffee with a view in late May. Go on a clear day for Alpine panoramas."},
+
+  {id:11,name:"Hallstatt",emoji:"🏔️",cat:"Alpine Village · Day Trip (Salzkammergut)",tag:"daytrip",priceLabel:"~€25–35 train + ferry / €4 Skywalk",salzburgcard:false,free:false,
+  lat:47.5622,lng:13.6493,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHog4wNYIbNfBw6VsrOcMZbEXP5cYOH1L62rNaKcK9XMRk9QnIhJxst-OeZHoiDECt8hhg-48q4xtC3Ja3FXrmKsbGXsaWRx38HErH56h-VYZ_Gh2ZNYD4hcTV61vXkKhYXVZ7BC8pmEONUhy5M0jYC=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFMdcNGbdpyydkUKGSvjQ2qCjqDrgIe338d7w1KkldMmgticdsw598Cj17z0GgeElOmQuR5lxSkiMm8xHl5d9BgZfOG9LJi78w3E1h_yVVqlpHzWe-vp3PQIS3TQ4I2JUZDv30OVapBfg2huB0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFqFf1Tz3bUuA-Eqao768bBVgSiNbiurOpHZB5DA_r328hrLcu4AYsEGrxYndcKfy28o71an9Hw4nErrkjSTwnrgFOPA6qqz58TN6FN7JdgAt_qiF25zZx49Ixwr8bwbIYll1ZlxXX5ZSoZMQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH4EIoc0ZixunCoBLWt3T1oRRQ9vm91823ofhkhjVoU2IGd-6t1tsYvVi3mjQ45ns4MMBjnrwbiQH_PNloHfJVbc88irFwVQ_TQNnsPfcEWq2yjQQRUW_1gvJO-TFrMu_RqsgTuNxuwkPuaGQ0=s800-w800-h500"],
+  desc:"One of the most photographed villages in the world, Hallstatt sits on the edge of a mirror-like lake surrounded by sheer Alpine cliffs. The village has a 7,000-year history of salt mining and the Skywalk viewpoint gives the iconic postcard shot. Small, serene, and genuinely magical — an absolute must for any visit to the Salzburg region.",
+  distance:"75 km from Salzburg — ~1.5 hours by train or ~1 hour by tour bus",transport:"Train: Salzburg HBF → Hallstatt (change at Attnang-Puchheim), then ferry. Or guided tour bus (Panorama Tours, recommended).",cost:"Train + ferry: ~€25–35 return · Guided tours: ~€35–45 · Skywalk: ~€4",time:"Full day (depart by 8:30am)",
+  tip:"Hallstatt village is tiny and gets extremely crowded by mid-morning. Arrive very early (before 9am) or take a morning tour. The salt mine tour above the village is fascinating — book ahead.",may:"Late May is one of the best times to visit — before the peak July–August crowds. Pre-book any guided tours."},
+
+  {id:12,name:"Sound of Music Locations",emoji:"🎵",cat:"Film Locations · Various · Tour Recommended",tag:"daytrip",priceLabel:"~€40–55 guided tour",salzburgcard:false,free:false,
+  lat:47.8046,lng:13.0423,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHW5rbqvXxbHLCPDQDfg0dvziY3MBY1bfk-p33UI_LXUy68PXdQ2SsMSa3TqBsK90ueVODkYMqIkmIi0jyhftkpsnXgf-1bskdcG5aMr5GUTIJiA3V_uhJaxtIdCFACyy5hQgb1Xw__g50cstw3x4eWgA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGySeKKg0BidZViXmIKJwo7-Dh23yQi0u_f2KD-jyYtfNce8YkHjGMA0m_Ghuz9eJuFlycBd2cv9luOp8Kbn7JBQ2oyZZjpa6bfVa5lueIg-r9kkxWPzEefhOg3q5JwcnRnHiRiTTDg9m6dVw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE0Ti1DbJgAhYDfjkt7Q0v0JGSV5qpkWhPQ36l0_6O4hV-5fYZLYI9br8BNoF2tP4e-eIJ_l8VUuN3ZWImnFLNR584ytxjL4Jwta5igs-141wbhXDShLvSY48gvNW59WweoJlXOxhQgWkzRSg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFW9dASWh8zMtaYnhLyaKzKwKxKcGTULT0fOziewgunVGaoJ7OOQjfwLXMFT1Oi5xMUMMX9J_y8KjCt_sSd4k6Du1YZjJRNOEk9vvK6Wt3XCCe3OGBh7X8_6FWeP_obN-sR7jAhQxYisvE_XvU3vKgrow=s800-w800-h500"],
+  desc:"The Sound of Music (1965) was filmed extensively in and around Salzburg. Key spots include Mirabell Gardens (Do-Re-Mi steps), Leopoldskron Palace (the lake house), Mondsee Cathedral (the wedding scene), Nonnberg Abbey, and the Hellbrunn Palace gazebo. A guided tour brings the whole story together across city and countryside.",
+  distance:"Locations spread across Salzburg city and up to 30 km away",transport:"Guided tours are the most efficient: Panorama Tours (half-day bus, ~€45) or Bob's Special Tours (small group minivan, max 8, ~€50). Both depart from Mirabellplatz.",cost:"Guided tour: ~€40–55 · Individual free sites (Mirabell, Nonnberg) visitable independently",time:"Half-day (4–5 hours on a guided tour)",
+  tip:"Bob's Special Tours (small van, max 8) offers a more personal experience than the large coach tours and reaches locations the buses can't access. Book well in advance for May–August.",may:"A Sound of Music tour is a fantastic way to see the broader Salzburg countryside in late May when everything is lush and green."},
+
+  {id:13,name:"Salzburg Museum",emoji:"🏛️",cat:"City History Museum · Neue Residenz · Mozartplatz",tag:"culture",priceLabel:"€9 adults / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.7987,lng:13.0478,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqG8jNTsFqaLhtnfx7vOdGTXMzMmVvEkIxpYsq1IxZUzeEBSKbQvfkviQuL_5csOY-jbxMraUCEHVh8BnkuopSWd2Z9mHB6Hu_k=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH_tXPfcTiwUzBLrlUyoQMlRJz7O7sk3Pqb_Va0sImP7RS6JzTALQiJSJnw7ukG6s9xKsmrQufQQjifA-TJfssN7-LVMuJoYrQLEc3Sk6rD6eTZmSZraDKwDSjI34ol8f-KJEVaJzJ6BGTDicE6nqtzeg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOpmB4iEXT56tXdUXmu-kfypTo804UrnxXWDCL4dvmSpc2x3MqGIRekdd4rV-8vwlXp4VgLJ2LmHrzCQxyW8ggMMg5eWg6k7jenILcksDE_WTp3L3IVjX-riM5vjURUK3wVa6SK20s1ZmzYbtgOkNb=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFYvnjEJeXKBpqhmhZKEqDpSBBxq1PTt9KZA8cPpQhnkceI6_a37a17fMb5HVT8nhDGJSAuE-7col6dUpUZeRDdJHYTD_UlGDldD1UPEAdPsRW-X55ntMx7-rheA18AdeH6Xpi0IGdbtqtsnA=s800-w800-h500"],
+  desc:"Housed in the Neue Residenz on Mozartplatz, this wide-ranging museum covers Salzburg's history from Roman Juvavum through the prince-archbishops to the modern city. Highlights include a rich collection of historic musical instruments, Roman artefacts, and rotating contemporary exhibitions. Compact, well-presented, and frequently overlooked.",
+  distance:"City centre — Mozartplatz 1, steps from Residenzplatz and the Cathedral",transport:"Walk from anywhere in the old town · same square as the Glockenspiel carillon tower",cost:"Adults: ~€9 · Free with Salzburg Card",time:"1–1.5 hours",
+  tip:"Combine with the DomQuartier ticket for best value in the area. The Glockenspiel carillon on the Neue Residenz facade plays daily at 7am, 11am and 6pm — time your arrival.",may:"A natural pairing with Residenzplatz and the Cathedral on a morning old-town walking loop."},
+
+  {id:14,name:"Nonnberg Abbey (Stift Nonnberg)",emoji:"⛩️",cat:"Benedictine Abbey · Festungsberg · Old Town",tag:"church",priceLabel:"Free",salzburgcard:false,free:true,
+  lat:47.7959,lng:13.0512,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNG35ouxhL7CLY4pJ_4l_BL4DHXEo3BeZtNjSpmaju2D9iqOXj_wde7ZaHuugLyBvDAU1qC38k6EkkLUVEBZ_4zaHVFXbL01cSALj-5WP3oqQ8rhY724t6AJYu1FIVdKCy0LefO4rnUahkv07VY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEXwkqVFmsVtGvk5uMp_4PbMLV2rodU6JC6fMbmgVkEUpKCMWH8t7Xr5sUY--Xq7RQu35saZRWaN8-r0OImk7vXRwxQjypVFBLnnbHr4MXm7PoKFMC-_mWJkfTdHJ7VxOkYlAbnQfQ07_0q=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG0g0zuZtyNRgPHaQ06eHEXUjfZ1vYng9J9wXcg_-lLPJV1zAAFEJ2i3Wj2C7a21qSyY_GK-cIy50fBmG4OtUu_ulbte4Jky5ytvIpms1Jif7o0Lh-Q-6xyA5HBTzNyok9j-e6NFLNCPJLJLw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGQ8P0xRU4fyWQ__Nt8fifKXN-GmN_ONaqNgiLQvaWcS6VnDDgreN7bIBZwOOY9pO1MV8sGCjm-PlzkF9I9vIbWRJHo1HlPKBgkFq2y1FCz_RDLgSvXeS4G4HvfZw7m60GT_-JxYNNqVXoSIw=s800-w800-h500"],
+  desc:"Founded in 714 AD, Nonnberg is the oldest continuously inhabited women's monastery north of the Alps and still an active Benedictine community. The Romanesque church is open to visitors. Famous worldwide as the convent where Maria begins her journey in The Sound of Music — the opening hillside scene was filmed on the slopes just above.",
+  distance:"0.8 km from Mozartplatz — 15-minute walk uphill, at the foot of the Festungsberg cliff",transport:"Walk east from the Cathedral then up the Nonnberggasse steps · or walk down from Fortress Hohensalzburg",cost:"Free",time:"20–30 minutes",
+  tip:"Combine naturally with Fortress Hohensalzburg — the abbey sits just below on the same hill. The views back over the old town from the abbey terrace are lovely and far less crowded.",may:"The hillside setting is beautiful with spring greenery. The walk up through the old lanes is charming and quiet."},
+
+  {id:15,name:"Kapuzinerberg Hill & Monastery",emoji:"🌲",cat:"Forested Hill & Capuchin Monastery · New Town",tag:"city",priceLabel:"Free / donations welcome",salzburgcard:false,free:true,
+  lat:47.8018,lng:13.0471,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHhjoZSRE3ykKrlBcUqwveMRYjem3WVcjLreRZbMBLjDuPtgjAKwDh4lbB-jdyB5vbQjxm4uc2nItgWIuYsXSc9WJOJsoD7KQMuLXfFZJkvsOmcRQOrwJIQhuIixF_HIOFaLCRQRWiQjNENr1tdxIJiGw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHS9MxmuHf9YM7LcSBCBtIO1L_gJmPiwfMv5fE3YMAlInt0Aa0PdrLiklK4SI9iu5lWkdlyTCGJdkgeuBXj1vxF6LxQaJHI-3463Q5Tsbrgyp-KjovCQwbAf2pdiu3W3SKkHmN2Pmuy6e-KdA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNERUA-z45h1qJynBHQFuRyLdyhShHa-FdDidd9uA75bS71vSaVbXhdvwRJgI0UpZFTeE_LTk5ZmHj0azBAwProVQevPD_fKKWGhWXhs-gtiKedXA32bjiuj-n9f6uEkI2JwfUqJMjCj2f0Q7A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGjUbkr7voYc06Kb24weB5KUyPmMZST9NqTgTJch64WX7FOpkNBF02ipHz3am0cKFyXOLJ_1uhXItwzeIRZYct2XMGrbu8HqgqRY_7Wrre1yUPUmS9otNuLfFfESEoz80tqhf8sRazQC190vQ=s800-w800-h500"],
+  desc:"A wooded hill rising steeply from the right bank of the Salzach, topped by a 17th-century Capuchin monastery offering some of the finest views over the old town and fortress from an entirely different angle. The monastery monks are known to offer homemade soup and coffee to visitors — one of Salzburg's most unexpected and charming encounters.",
+  distance:"0.5 km from Mozartplatz — cross the Staatsbrücke bridge then head uphill",transport:"Walk across the Staatsbrücke bridge from the old town, then follow signs up the steps (~15 min climb)",cost:"Free · Monastery donations welcome for food/drink",time:"45–90 minutes",
+  tip:"The climb is steep (~260 steps) but the view is well worth it — a completely different panorama to the fortress side. The monks' hospitality (soup, coffee, pastries for donation) is a genuinely memorable experience.",may:"The forested trails are lush and cool in late May — a lovely escape from the busier old-town streets."},
+
+  {id:16,name:"Collegiate Church (Kollegienkirche)",emoji:"🎼",cat:"Baroque University Church · Universitätsplatz · Old Town",tag:"church",priceLabel:"Free",salzburgcard:false,free:true,
+  lat:47.7992,lng:13.0432,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNH0dnajfzkVL1K6890C8V2FlJ5WKi5N5GAPU4QknEtB403pjrCRwxaLGnA5Tu48LrXqTLG3XBCdRmP_5D1ZzqxzLu2tHY9B9QaXwfPI6rMN_jjqcv7zzl1g80joUK7VSs756wNScF2EbjqM=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFCkqJVEyT8NH_Bd4IAdil9x23uZOuHxpplmorE_dZJBt76xR-qV4xNmrtZNOnE-bhHkL5Rf2CFdSUOwTZ0vaDzjLxyIbSmKLpkhYLRKpVGSH2C0vJNDl9TFDqyOYGTZFayesjGPzmIjipapA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHs5jpYKdBA96HLplGhUjE2LcbI4aXm0EQKY0HWMb2h5Tc4r_5Sz4GpQ6bn4UML5xEqZgBRrU2gg3Mbll2CZO13ilOyHmmYI2_OF0TR2dJSOevexEqiihTi9-8VFkS649wG7wb0A4ZQqikJVh0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG-lrQTLgAuts-ecOnsxl2VGWJ-NwClOv9INKoHTVDkc9y6i-g2T4Vbiarn47X2Kcc1NMTLYNqzjhrTDFX3RIZaOl47BYTIqGTtFYyLBz6s0-3fbgm9gL4J4Mu3CzShxwJ1qMlV74-Nv6yl4Q=s800-w800-h500"],
+  desc:"Designed by Johann Bernhard Fischer von Erlach and completed in 1707, the Kollegienkirche is considered one of the finest Baroque churches in the German-speaking world. The vast cream-white interior — far larger than the exterior suggests — is a masterwork of spatial drama, with five cupolas and brilliantly coloured side altars.",
+  distance:"0.3 km from Mozartplatz — 5-minute walk west through the old town",transport:"Walk from Mozartplatz or Getreidegasse",cost:"Free",time:"20–30 minutes",
+  tip:"The acoustics are exceptional — if a concert or service is on, try to attend. The Universitätsplatz outside hosts a daily fresh produce and flower market.",may:"The Universitätsplatz market is at its most colourful in late spring. Church first, then coffee and market browsing outside."},
+
+  {id:17,name:"Untersberg Mountain",emoji:"🏔️",cat:"Alpine Summit · Day Trip / Half Day",tag:"daytrip",priceLabel:"~€28 cable car / Free with Salzburg Card",salzburgcard:true,free:false,
+  lat:47.7228,lng:13.0088,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNE3SJVmppsNSW8Lj4wPMRBkt4WXgAx2-T0AO0_RHjpASSf5OlCh4Yn4uRlFA7HO2KfTWjD-qLx608EOk8g3KBZbjMWYSUDLNa9VQ_g58o-cod5J1ly2ghcrUPs5Z2dtcYLjcqLyrLBAx9Z9bw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHA61b9XBSBpcEbok2EfNvqA8q-tFovlud2GljT8h5P_LZM5ZU8vgutt_SftO3eA9-IJZ6gcT10bKM8yoplKIo10IHxCFR9qCgBLpV5K9Nvs3tjN-U2xIj5DZIzRv4mEFwGrIFavgbotU9M2A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFr3CVcNU--DPF0x14950hXblTF09wdI7zNtxuWQS3zrfuOK7CpRRIlu-AFwmJSsDWFG1r2mVmxnCP8WE5ttPW5n_0VA6W4xohR7gn1DlPM1_HeyHYnl__aNIOJdeUK2vv-I4vLljPgM8zf=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFjifnjKmtbXp3ZkQl8QEZlvNgHcLqM4X2xsC4OUPFEVJa2Geb9uKFIb2dtFTKfGO7zjugRvWDDsroOamFkAz30qjOa5Fm9kX5hpU0kqAeJP95vtZIMt-sspzzWjESiGG94FJJa41qXRy71jQ=s800-w800-h500"],
+  desc:"A dramatic limestone massif rising to 1,853m just 20 minutes south of Salzburg. A cable car (Untersbergbahn) whisks visitors from the valley to 1,776m in under 10 minutes, with a short walk to the summit plateau rewarding with sweeping 360° views across Salzburg, the Berchtesgaden Alps, and on clear days all the way to Munich.",
+  distance:"15 km south of Salzburg — ~20 minutes by car or ~40 minutes by bus",transport:"Bus 25 from Salzburg Hauptbahnhof or Rathaus direct to the Untersbergbahn valley station. Bus 25 also included with Salzburg Card.",cost:"Cable car return: ~€28 adults · ~€16 children · Free with Salzburg Card",time:"Half day (3–4 hours including travel)",
+  tip:"Check weather carefully before going — cloud cover can roll in quickly. Wear sturdy shoes and bring a warm layer — temperatures at the top are 8–10°C cooler than the city.",may:"Snow may still be present on the upper plateau in late May — check conditions. When clear, one of the most spectacular viewpoints in the region."}
+];
+
+// ── SLIDESHOW ─────────────────────────────────────────────────────────────────
+const ssState = {};
+P.forEach(p => ssState[p.id] = { cur: 0, total: p.photos.length });
+
+function goSlide(id, idx) {
+  const ss = document.getElementById('ss-' + id);
+  if (!ss) return;
+  const slides = ss.querySelectorAll('.slide');
+  const dots = ss.querySelectorAll('.dot');
+  slides[ssState[id].cur].classList.remove('active');
+  dots[ssState[id].cur] && dots[ssState[id].cur].classList.remove('active');
+  ssState[id].cur = idx;
+  slides[idx].classList.add('active');
+  dots[idx] && dots[idx].classList.add('active');
+}
+function changeSlide(id, dir) {
+  const s = ssState[id];
+  goSlide(id, (s.cur + dir + s.total) % s.total);
+}
+
+function toggleDetails(id) {
+  const btn = document.getElementById('dtbtn-' + id);
+  const body = document.getElementById('dtbody-' + id);
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('.arrow').textContent = open ? '▲' : '▼';
+  btn.querySelector('.label').textContent = open ? 'Less details' : 'More details';
+}
+
+function priceBadge(p) {
+  const isFree = p.priceLabel.startsWith('Free') && !p.priceLabel.includes('/');
+  return `<span style="color:${isFree ? '#7de0a0' : '#fff'}">${p.priceLabel}</span>`;
+}
+
+// ── RENDER CARDS ──────────────────────────────────────────────────────────────
+const grid = document.getElementById('places-grid');
+P.forEach(p => {
+  const isDay = p.tag === 'daytrip';
+  const slides = p.photos.map((url, i) =>
+    `<div class="slide${i === 0 ? ' active' : ''}"><img src="${url}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.style.display='none'"></div>`
+  ).join('');
+  const dots = p.photos.map((_, i) =>
+    `<span class="dot${i === 0 ? ' active' : ''}" onclick="goSlide(${p.id},${i})"></span>`
+  ).join('');
+
+  const card = document.createElement('div');
+  card.className = 'place-card';
+  card.dataset.tag = p.tag;
+  card.dataset.salzburgcard = p.salzburgcard ? 'true' : 'false';
+  card.dataset.free = p.free ? 'true' : 'false';
+  card.id = 'card-' + p.id;
+  card.innerHTML = `
+    <div style="position:relative">
+      <div class="slideshow" id="ss-${p.id}">
+        ${slides}
+        ${p.photos.length > 1 ? `
+        <button class="slide-btn slide-prev" onclick="changeSlide(${p.id},-1)">&#8249;</button>
+        <button class="slide-btn slide-next" onclick="changeSlide(${p.id},1)">&#8250;</button>
+        <div class="slide-dots">${dots}</div>` : ''}
+      </div>
+      <span class="cat-badge${isDay ? ' daytrip-badge' : ''}">${isDay ? '🚌 Day Trip' : p.cat.split('·')[0].trim()}</span>
+      <div class="price-badge">${priceBadge(p)}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">${p.emoji} ${p.name}</div>
+      <div class="card-hint">🗺️ Click card to locate on map</div>
+      <div class="card-category">${p.cat}</div>
+      <div class="card-desc">${p.desc}</div>
+      <button class="details-toggle" id="dtbtn-${p.id}" onclick="toggleDetails(${p.id})">
+        <span class="label">More details</span> <span class="arrow">▼</span>
+      </button>
+      <div class="details-body" id="dtbody-${p.id}">
+        <div class="info-row"><span class="info-label">📍 Distance</span><span class="info-value">${p.distance}</span></div>
+        <div class="info-row"><span class="info-label">🚌 Getting There</span><span class="info-value">${p.transport}</span></div>
+        <div class="info-row"><span class="info-label">💶 Entry</span><span class="info-value">${p.cost}</span></div>
+        <div class="info-row"><span class="info-label">🕒 Time</span><span class="info-value">${p.time}</span></div>
+        <div class="info-row tip"><span class="info-label">💡 Tip</span><span class="info-value">${p.tip}</span></div>
+        <div class="info-row may"><span class="info-label">🌸 Late May</span><span class="info-value">${p.may}</span></div>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', function(e) {
+    if (e.target.closest('.slide-btn') || e.target.closest('.dot') || e.target.closest('.details-toggle') || e.target.closest('a')) return;
+    map.flyTo([p.lat, p.lng], p.tag === 'daytrip' ? 12 : 15, {duration: 1.0});
+    setTimeout(() => markers[p.id].openPopup(), 1100);
+    document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+    card.classList.add('highlighted');
+    setTimeout(() => card.classList.remove('highlighted'), 2500);
+  });
+});
+
+// ── LEAFLET MAP ───────────────────────────────────────────────────────────────
+const map = L.map('map').setView([47.800, 13.045], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+}).addTo(map);
+
+const tagColors = { city: '#1B3A6B', culture: '#5C3317', church: '#4A0A20', daytrip: '#1a4a1a' };
+const markers = {};
+
+P.forEach(p => {
+  const color = tagColors[p.tag] || '#1B4D2E';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:${color};color:#fff;border:2.5px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:pointer">${p.emoji}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20]
+  });
+  const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+  m.bindPopup(`
+    <div style="font-family:sans-serif;min-width:190px">
+      <strong style="font-size:.92rem">${p.emoji} ${p.name}</strong><br>
+      <span style="font-size:.78rem;color:#666;font-style:italic">${p.cat}</span><br>
+      <span style="font-size:.78rem;color:#555;margin-top:2px;display:block">${p.priceLabel}</span>
+      ${p.salzburgcard ? '<span style="font-size:.72rem;background:#D6EDE0;color:#1B4D2E;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:3px">🎫 Salzburg Card</span>' : ''}
+      <a href="#card-${p.id}" onclick="scrollToCard(${p.id})" style="display:inline-block;margin-top:6px;font-size:.78rem;color:#1B4D2E;font-weight:600;text-decoration:none;border:1px solid #D6EDE0;padding:3px 9px;border-radius:5px">View card ↓</a>
+    </div>`);
+  markers[p.id] = m;
+});
+
+function scrollToCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  const panel = document.getElementById('cards-panel');
+  panel.scrollTo({ top: card.offsetTop - panel.offsetTop - 10, behavior: 'smooth' });
+  document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+  card.classList.add('highlighted');
+  setTimeout(() => card.classList.remove('highlighted'), 2500);
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function filterCards(tag, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let count = 0;
+  document.querySelectorAll('.place-card').forEach(c => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'salzburgcard') show = c.dataset.salzburgcard === 'true';
+    else if (tag === 'free') show = c.dataset.free === 'true';
+    else show = c.dataset.tag === tag;
+    c.classList.toggle('hidden', !show);
+    if (show) count++;
+  });
+  document.getElementById('count-badge').textContent = count + ' place' + (count === 1 ? '' : 's');
+  P.forEach(p => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'salzburgcard') show = p.salzburgcard === true;
+    else if (tag === 'free') show = p.free === true;
+    else show = p.tag === tag;
+    if (show) { if (!map.hasLayer(markers[p.id])) markers[p.id].addTo(map); }
+    else { if (map.hasLayer(markers[p.id])) markers[p.id].remove(); }
+  });
+}
+</script>
+</body>
+</html>

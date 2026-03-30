@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vienna Travel Guide</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --red:#8B1A2B;--red-mid:#B22234;--red-light:#F5D0D5;
+  --gold:#C9961A;--gold-light:#FDF3D8;
+  --cream:#FAF8F3;--white:#fff;
+  --text:#1A1A1A;--text-mid:#555;--text-light:#888;
+  --border:#E0DDD6;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Source Sans 3',sans-serif;
+  --header-h:64px;--filter-h:50px;
+}
+.header-inner{display:flex;align-items:center}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--cream);color:var(--text);font-size:14px}
+.site-header{height:var(--header-h);background:var(--red);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;position:relative;z-index:200}
+.site-header h1{font-family:var(--serif);font-size:1.45rem;color:#fff;font-weight:700;white-space:nowrap}
+.site-header p{color:#f0a0a8;font-size:.78rem;margin-left:14px;display:flex;gap:10px;flex-wrap:wrap}
+.back-btn{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:var(--sans);font-size:.75rem;font-weight:600;padding:6px 14px;border-radius:20px;text-decoration:none;transition:background .18s;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.22)}
+.header-tag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#ffd0d8;font-size:.72rem;padding:3px 10px;border-radius:20px}
+.filter-bar{height:var(--filter-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px;position:relative;z-index:150;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.filter-label{font-size:.72rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;white-space:nowrap}
+.filter-btn{background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);font-size:.76rem;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--sans);transition:all .18s;white-space:nowrap}
+.filter-btn:hover,.filter-btn.active{background:var(--red);border-color:var(--red);color:#fff}
+.count-badge{background:var(--red-light);color:var(--red);font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:10px;margin-left:auto;white-space:nowrap}
+.layout{display:flex;height:calc(100vh - var(--header-h) - var(--filter-h));overflow:hidden}
+.map-panel{width:42%;flex-shrink:0;position:relative;border-right:3px solid var(--gold)}
+#map{width:100%;height:100%}
+.cards-panel{flex:1;overflow-y:auto;padding:16px;background:var(--cream)}
+.cards-panel::-webkit-scrollbar{width:6px}
+.cards-panel::-webkit-scrollbar-track{background:#f0ede6}
+.cards-panel::-webkit-scrollbar-thumb{background:#c0bbb0;border-radius:3px}
+.places-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.place-card{background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
+.place-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.place-card.hidden{display:none}
+.place-card.highlighted{outline:3px solid var(--gold);outline-offset:0}
+.slideshow{position:relative;height:190px;overflow:hidden;background:var(--red);flex-shrink:0}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .4s ease}
+.slide.active{opacity:1}
+.slide img{width:100%;height:100%;object-fit:cover;display:block}
+.slide-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.42);backdrop-filter:blur(3px);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .18s;line-height:1}
+.slide-btn:hover{background:rgba(0,0,0,.7)}
+.slide-prev{left:7px}.slide-next{right:7px}
+.slide-dots{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:10}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45);cursor:pointer;transition:background .18s}
+.dot.active{background:#fff}
+.cat-badge{position:absolute;top:9px;left:9px;background:rgba(139,26,43,.82);backdrop-filter:blur(4px);color:#ffd0d8;font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:14px;text-transform:uppercase;letter-spacing:.05em;z-index:10}
+.daytrip-badge{background:rgba(201,150,26,.88);color:#fff}
+.price-badge{position:absolute;bottom:26px;right:8px;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);color:#fff;font-size:.72rem;font-weight:600;padding:4px 8px;border-radius:7px;z-index:10;display:flex;align-items:center;gap:4px}
+.price-free{color:#7de0a0}
+.warn-badge{position:absolute;top:9px;right:9px;background:rgba(180,60,0,.88);color:#fff;font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:14px;z-index:10}
+.card-body{padding:12px 14px;display:flex;flex-direction:column;flex:1}
+.card-title{font-family:var(--serif);font-size:1.15rem;font-weight:800;color:var(--red);margin-bottom:1px;line-height:1.25}
+.card-hint{font-size:.65rem;color:var(--text-light);margin-bottom:1px}
+.card-category{font-size:.72rem;color:var(--text-light);margin-bottom:8px;font-style:italic}
+.card-desc{font-size:.95rem;color:var(--text-mid);line-height:1.6;margin-bottom:10px}
+.details-toggle{display:flex;align-items:center;gap:6px;background:none;border:1.5px solid var(--red-light);color:var(--red-mid);font-size:.75rem;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:var(--sans);transition:all .18s;width:100%;justify-content:center;margin-top:auto}
+.details-toggle:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.details-toggle .arrow{transition:transform .25s;display:inline-block}
+.details-toggle.open .arrow{transform:rotate(180deg)}
+.details-body{display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px}
+.details-body.open{display:block}
+.info-row{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid #F0EDE6;padding:5px 0;gap:4px}
+.info-row:last-child{border-bottom:none;padding-bottom:0}
+.info-label{font-size:.68rem;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.04em;padding-top:1px;line-height:1.4}
+.info-value{font-size:.76rem;color:var(--text);line-height:1.45}
+.info-row.tip{background:var(--gold-light);border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.tip .info-label{color:var(--gold)}
+.info-row.may{background:#EDF7ED;border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.may .info-label{color:#2E6B3E}
+.info-row.warn{background:#FFF0E6;border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.warn .info-label{color:#B44000}
+.map-legend{position:absolute;bottom:12px;left:10px;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.72rem;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.legend-item:last-child{margin-bottom:0}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0}
+@media(max-width:900px){html,body{overflow:auto;height:auto}.layout{flex-direction:column;height:auto;overflow:visible}.map-panel{width:100%;height:320px;border-right:none;border-bottom:3px solid var(--gold)}.places-grid{grid-template-columns:1fr}.site-header p{display:none}.card-hint{display:none}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <h1>🇦🇹 Vienna Travel Guide</h1>
+    <p>
+      <span class="header-tag">🌸 Late May tips</span>
+      <span class="header-tag">📸 Photo slideshow</span>
+      <span class="header-tag">📍 23 places</span>
+    </p>
+  </div>
+  <a class="back-btn" href="index.html">← Back to all cities</a>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="filterCards('all',this)">All Places</button>
+  <button class="filter-btn" onclick="filterCards('city',this)">City &amp; Landmarks</button>
+  <button class="filter-btn" onclick="filterCards('culture',this)">Museums &amp; Culture</button>
+  <button class="filter-btn" onclick="filterCards('church',this)">Churches</button>
+  <button class="filter-btn" onclick="filterCards('daytrip',this)">Day Trips</button>
+  <button class="filter-btn" onclick="filterCards('viennapass',this)">🎫 Vienna Pass</button>
+  <button class="filter-btn" onclick="filterCards('free',this)">🆓 Free Entry</button>
+  <span class="count-badge" id="count-badge">23 places</span>
+</div>
+
+<div class="layout">
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1B3A6B"></div> City &amp; Landmarks</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#5C3317"></div> Museums &amp; Culture</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4A0A20"></div> Churches</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a4a1a"></div> Day Trips</div>
+      <div class="legend-item" style="border-top:0.5px solid #ddd;margin-top:5px;padding-top:5px"><span style="font-size:.7rem;color:#888">🎫 Vienna Pass = 9 places included<br>🆓 Free Entry = 16 places with free access</span></div>
+    </div>
+  </div>
+  <div class="cards-panel" id="cards-panel">
+    <div class="places-grid" id="places-grid"></div>
+    <div style="text-align:center;padding:16px 0 6px;font-size:.75rem;color:var(--text-light)">Vienna Travel Guide · Entry prices approximate 2024/25 · Gute Reise! 🎶</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const P = [
+  {id:1,name:"St. Stephen's Cathedral (Stephansdom)",emoji:"⛪",cat:"Gothic Cathedral · City Centre · Stephansplatz",tag:"city",priceLabel:"Free / €20 all-inclusive",viennapass:false,free:true,
+  lat:48.2084,lng:16.3735,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGFYIB7tzeeSQN0WxhO3Jj8mGnvCsWWhs6vWAB8htPXNKrmLgUXpP2ywKUFn7QfDKf3Q5vkZmat4xR0mB5Ux70dOa0hLo4bxldai9QEeT_VwIw1N2-1G6WEeIhWHdYDRKiNq19UdeAhJ5gFdBGSspwUJg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEywuZVuditDwRpWRfzJGK7psY850B8iC64SDjBCUD331zYHNlG_TxZrAimjXMPxmahJ-kp_45KSjLu6DaqPo0A3x8qTRYY8KjsMpQzfy7zXer-dRfuK3oG8QaAYFmtZ0WeypbT-yZ5rLp0AME=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF5dRTVnRbjUDw9LJm0oVx4_uQPwKOmD7t2j9ICD-WgzCOE6TZhbKrnnB9oxj8Nd1nSQrR1jKlnuCWrAqXbJu26DMAZ177tDYemuH2XUVA7pZ7sidkLkN65MUYlSgNFPfB1p6tlI60gilpjB7BxUyZAag=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEgEMT7dRTcpoejMN3ajfgFp_VUXl0RbqHsGmH-7cPt_AixHMTVKjM0ElpaxeLq0Ge4eoM2P7NEC7xbuZYuFo8NYY3DqRoZ7ao5yz2KIQf8iPWpGdcUfQXNxGjqWqLmwZNpyvK4PVp-wtLOfTU=s800-w800-h500"],
+  desc:"Vienna's most iconic landmark, rising dramatically from Stephansplatz with its elaborately patterned mosaic roof and 136-metre South Tower. Construction began in 1137. Mozart's marriage and funeral both took place here, and beneath lies the Imperial Crypt with the remains of Habsburg rulers.",
+  distance:"City centre — Stephansplatz is the reference point for all Vienna distances",transport:"U-Bahn: Stephansplatz (U1/U3 — direct)",cost:"Cathedral: Free · South Tower climb: ~€6 · Catacombs: ~€6 · All-inclusive: ~€20",time:"45–90 minutes",
+  tip:"Climb the South Tower (343 steps) for the best rooftop view of Vienna. The North Tower has a lift. Catacombs guided tour runs every 30 min.",may:"The mosaic roof glows beautifully in late-spring sunshine. The square fills with outdoor cafés and street musicians."},
+
+  {id:2,name:"Hofburg Palace",emoji:"👑",cat:"Imperial Palace Complex · City Centre · Heldenplatz",tag:"culture",priceLabel:"€18 Imperial Apartments / €16 Neue Burg",viennapass:true,free:false,
+  lat:48.2057,lng:16.3648,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHJL2yOZ7bHjRzphYnus9T-9opgofRHBp8QmCy_qE2uV25WIdcL1K7UfkPXvewGi8WNKfbaEW5mUzCDwIQ0oGkGJgF1y6PLJiKpLBog2itOfbA0po1s5X8hqIgZplLuQxaYWuktIv-EvcJiCQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGXIYg8SBK-7smxrFYHkQbsq43docuAmipxmysdhG0muaMe3Pwfr2G3ETX362-vSxKd9SZMJkYP8XjFQaEPdHT-79JNGiSJXSPxpmBTqezq1zVdR0DYzWvDBygQNFzb6VPtCHGCo2rJGQ0FyYM=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFu1a6UEC564QvI4j0Cp8OOjyCf5G9rhUYqaVX0FMhXSkDFt0VZwvqeIIMr4PjOMR3eihUAAtHQ0vlunegI-AIq9zdJgPQRVLntBzbKr5wRvwtmnEY1JyjvgyGLYMulbm6ZCPPS7frpXpX-QWvKiaig9w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFo3HeGidV5kl6RVoQ2yaO6NbehYM74X1uYfeBFPBVg3m5e4kdVl-PqDvl9hFhlzmVtTouh2i0qU2bRUwzZWDNBtvG9tSF1jTYkFV_oUcNnYU-azMtu3fUBMNZzoiAKiHxMtsoOB1Hy85h4gGbBFpZ39g=s800-w800-h500"],
+  desc:"The vast imperial palace serving as the Habsburg dynasty's winter residence for over 600 years — a sprawling complex of 18 wings, 54 staircases and 2,600 rooms. Today it houses the Sisi Museum, Imperial Apartments, Silver Collection, and the Neue Burg with its extraordinary armoury.",
+  distance:"10-minute walk west from Stephansplatz",transport:"U-Bahn: Herrengasse (U3) or Volkstheater (U2/U3) · Tram: 1, 2, D to Burgring",cost:"Imperial Apartments + Sisi Museum: ~€18 · Neue Burg museums: ~€16",time:"2–4 hours",
+  tip:"Buy the combo ticket. The Sisi Museum is the most popular section — arrive at opening to beat the crowds. The Neue Burg armoury is world-class and often quieter.",may:"The Burggarten behind the palace — with its famous Mozart statue — is glorious in late May. Free to enter."},
+
+  {id:3,name:"Schönbrunn Palace & Gardens",emoji:"🏰",cat:"Baroque Imperial Palace · Hietzing",tag:"culture",priceLabel:"Free gardens / €24–30 palace tour",viennapass:true,free:true,
+  lat:48.1858,lng:16.3128,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEsBQHTL40NzzJX-swc9qXoagESvzXduEejnPw_8r1ZatEJJhpu_MPrNhHuGlsZ2RNVpAdvSOA4ClKtbo96dqBPm3nV3gHvQrnsmG2Tog2smoIz7v1IMXmR6OGV-CpSgI8hDsdvaTa94YxO6A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEYltPk7GGL37vD0zEU39t_7ua65cHmJJBtQPtJoQcF39tu_nwpuRbSyQywSBuqto0S0otO6CeLR5M68cptb7uFERbZNd-lk4QHs4KbHMTrBmoGmZUFkvhW0YxoPQnWK_PEu1RYOMCAv7ONbA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGJzPf-xXIhCSsZmedKFNWAdXZJYfFC8_l7zpffvC_K9XtJXirHR9bXBFNrY-8fQRqtF0svW7i0P0oieRKQEv3yVZ_GtakAgbgedQkmGquvxUH2zn0-pZnAU-dBHkPd1NveZsxSyqxvph-GqBOpTvvgug=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGCf1AjxnfhgmiVE6SXHsIrkxz9IxNf2nwDkd4a3Xr_IybZ302uTA-Pu846UAnsTmkapNCIH_LUrJvKIpnmqreLMBzE_-4B2yQxN-46jQtVvhVgKcp4KjmJsVtwsAUdFPK40H3qVHGzQWpweSvQAwZyqw=s800-w800-h500"],
+  desc:"The Habsburg summer palace and one of Austria's most visited attractions — a vast Baroque complex of 1,441 rooms with immaculately kept formal gardens stretching up to the Gloriette monument. The Hall of Mirrors is where the 6-year-old Mozart once performed for the imperial family.",
+  distance:"5 km southwest of Stephansplatz — ~20 minutes by U-Bahn",transport:"U-Bahn: Schönbrunn (U4 — direct, ~15 min from city centre)",cost:"Classic Tour (22 rooms): ~€24 · Grand Tour (40 rooms): ~€30 · Gardens: Free",time:"2–3 hours",
+  tip:"Buy tickets online to skip the 45-min queue. Climb to the Gloriette for the best panoramic view of Vienna. The zoo on the grounds is also included with some ticket combinations.",may:"The formal gardens are at their finest in late May — fountains running, flowerbeds in full colour. One of the best times of year to visit."},
+
+  {id:4,name:"Belvedere Palace & Museum",emoji:"🖼️",cat:"Baroque Palace & Art Museum · Landstrasse",tag:"culture",priceLabel:"€18 Upper / €15 Lower / €25 combined",viennapass:true,free:true,
+  lat:48.1915,lng:16.3809,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGe1Cdq4G8GzQuVeXQ98g-3YZboMoGeoJlVzUmuqaxB657_bXS58BokvS239h2XLwIZAVEDLqc2Dev2stPrXUWQfINXqw3gggf01j175wgDArI4zC5n9Un2oKUVjjludVQKauAzUpx7a4a6Jw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE6pyu4V6rKhxww-SDCh6NZkJFtjTKLZNA7AmD8XawMNkpSY9ZeTkkQT1kHdmVGvaeqcMfMXBdCe4GwsA1zP7jedgonqgXH-ZdpmbWdzVGLO_jD6lrMa8ZH38ZieM_B9imOn7mhQNRtdhMxBQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFC53_e0Wz0EzBrKZRHiV0leR0IXzpq7HwHk03u8TU1yVSLQo3Lt2nNikFZXYUrngGl5k2SbyX65MhI67mCWH3d-2C5IIMOW1qEKDEbzwXaIS9tvX1EwyjEpbGq5W3wYVtxEjZy93EkeoSI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFsKak1waqYf3k7qg2iqTEht2xtpHmutfeF4dIKL1z3pYrKKaJHBiR_9RPsWLz0EUkJo_KxEpFVb5j7trVxW19ANfxz9RUQolTnFszX7vc3kusJwQ8WYle4_nmNj8WoR3bM2fn9xMHi8kGHHmhB33F04Q=s800-w800-h500"],
+  desc:"Two magnificent Baroque palaces in formal French gardens, housing one of the world's great art collections. The Upper Belvedere is home to Gustav Klimt's The Kiss — arguably the most famous painting in Austria — alongside works by Egon Schiele, Oskar Kokoschka, and a stunning Monet room.",
+  distance:"2.5 km southeast of Stephansplatz — 20-minute walk or short tram",transport:"Tram D to Schloss Belvedere (~10 min) · U-Bahn: Hauptbahnhof (U1) then walk",cost:"Upper Belvedere: ~€18 · Lower Belvedere: ~€15 · Combined: ~€25 · Gardens: Free",time:"1.5–2.5 hours",
+  tip:"Go to see The Kiss first thing when the museum opens — it draws enormous crowds by mid-morning. The Lower Belvedere (Orangery) is often overlooked but has superb Baroque art.",may:"The Belvedere gardens in late May with fountains and roses reflected in the long pool are among Vienna's most photogenic sights."},
+
+  {id:5,name:"Kunsthistorisches Museum (KHM)",emoji:"🏛️",cat:"Fine Art Museum · Ringstrasse",tag:"culture",priceLabel:"€22 adults / Free under 19",viennapass:true,free:false,
+  lat:48.2038,lng:16.3618,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEUgBTrPJc_x2Ll_xNOs2TfAwPHtWZcqEizd8s1onTV5ZXhggHKId4Uf0clgY-6rOpNhHx5zsT78vtS7UQJKsAZBkFCC0FTrwf5-jWP8OZdTsszKntpamkE3pXk1CZAU0H4E5WSlfS769GhBA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE-L8EsAm4axK9krEz-crVCewC3xzhHMN0T0PBpPMVHLd7dc6nRG5KIBBS1zKVB_uspuShcExm2PaVV7xHQuYYq7k4gk5eHB_UjyTGcGbLrMRzvr6l0JXeAOour0RAeOlMlGIZKAk3JLbqq8nM=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFWHbKVwZ7pVHXkUUMmB23eEPPQ_DOh8ecI-yBeRJ_cEtTY7ovQEjCek-HQ7ew_IrjISjeaUj1NZxiSeh8VdU6maq2gb_LcPzGA2tf1hx6Q8clvbQNo-hZdLdDJG_z5jpzCWCLw8MkR9kUNZQ1FOJNtUQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFue74-tsbSPhabzXLNoWSl7Gg9FKf7m9uxAwLL8NNgm4GZ3QgpM3SwJvNaXGaDwm0FPBcHniuqFn1w2ogCj1IXRIbeFRJlrlnnXJXDJZLXm6_vO8ECQIU5UpC5VAI2rg5g_A5a1HrvgTJi=s800-w800-h500"],
+  desc:"One of the world's greatest art museums, built in 1891 to house the Habsburg imperial collections. Highlights include Raphael, Vermeer, Caravaggio, Velázquez, and the world's largest Pieter Bruegel the Elder collection. The museum building itself — with its frescoed café dome by Klimt — is a work of art.",
+  distance:"1.2 km from Stephansplatz — 15-minute walk along the Ringstrasse",transport:"U-Bahn: Volkstheater (U2/U3) or Museumsquartier (U2) · Tram: 1, 2, D to Burgring",cost:"Adults: ~€22 · Under 19: Free",time:"3–5 hours",
+  tip:"Closed Mondays. Open until 9pm on Thursdays. The café in the domed central hall is one of the most beautiful in any museum in the world — don't miss it.",may:"An excellent option for a cooler or rainy May day. Pair with the Natural History Museum opposite."},
+
+  {id:6,name:"Albertina Museum",emoji:"🎨",cat:"Art Museum · City Centre · Albertinaplatz",tag:"culture",priceLabel:"€18.90 adults / €14.90 students",viennapass:true,free:false,
+  lat:48.2047,lng:16.3682,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHZK9puzCC66bYWGc9mxRSoLifOC8rGuusBw82ttL37f7f2JB7QUAE81Hehncg9Nm0jFxF9Fwfx0m5AMgiP_tqZoNSGwXXVCEAt0u45OmMcf1IVvUJwDpRZO8UV9OZEpngmFfeZhqHlyi-5=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE6z2zgMLZlb9hbsYp6ijZqDZHVMOGUboxNYWU1dtApXCDfZQGBP70ltzZJDFbuh-pHA5gZuXrhZ5js2-0twAUY8R3UVkQuDv-OtiEq4oT5CSWw50NC7FNLkU7WCARv5l78M0dbDlyu-ObTnSR8xaFvUQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG_VCmfl8ArUZWfPUPq3SADJRRB0Q4Gg6ibdttt1CYKUenb_OBWa84dIQKRbF14RmG4A67fmnEOit7hUWtTrebTw2Qc2bZw9mT8vJrnns2Y4Jenxoa7rB1uaptNS5FqeZNEE-69QtgHTA3VbA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH6AJFDIDLGa_eY6EKvIT9tcRrauRs9WwCebCbQlnPibcEa59I1aGWqxKmTXHsfDAWKzg3DKiVziNLiSsRQlct-p6F8_-gjvMWN_dqIXqoKmrgP7d3jCCHNzFDH8F1K_rRV8Sw0L79VK5lrSw=s800-w800-h500"],
+  desc:"One of the world's largest graphic art collections in a Neoclassical palace adjacent to the State Opera. The permanent Batliner Collection covers Impressionism through Modernism — Monet, Picasso, Cézanne, Chagall — with an outstanding Klimt and Schiele room.",
+  distance:"5-minute walk from Stephansplatz · on Albertinaplatz",transport:"Walk from Stephansplatz · Tram: 1, 2, D, 71 · U-Bahn: Karlsplatz (U1/U2/U4)",cost:"Adults: ~€18.90 · Students: ~€14.90",time:"1.5–2.5 hours",
+  tip:"Open late on Wednesdays and Fridays (until 9pm) — a perfect evening activity. The rooftop terrace café has a brilliant view over the Staatsoper and Ringstrasse.",may:"The terrace on Albertinaplatz is one of Vienna's great people-watching spots on a warm May evening."},
+
+  {id:7,name:"Vienna State Opera (Wiener Staatsoper)",emoji:"🎭",cat:"Opera House · Ringstrasse",tag:"culture",priceLabel:"€13 guided tour / €3–10 standing tickets",viennapass:true,free:false,
+  lat:48.2034,lng:16.3692,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFLuhnhO7cPOIlBn7GBF6qqalB9lVbZQcdcUZq8UzITpzdkwlhNYFFLf92fakh1JxS0rVC5KGlR-iavuuv2KU_Fu89-Pvugex6zuu6rdDGZAje6t_seJYszrLj-0hsBIqqW7xsms0YPtOhHO0U=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF0DKWo5OEdgGxCqvATAZ52jq7-EKua6dZPEqtBKgwbpRBTpJEQDUoOjrfTn3aRKp0TExA_KyV28YJGP2gZoOLfpAduA12VIcW_wtcOUg5Bw43B4NM55r5mgzlyrWkspZ2HZHGHbEzyVbGGJRKKc-V28A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFwzMixtkJXWElVCBHZbhWYBCATWmnLrZbWmDm-nUklQbQbeMo5mQp3PZFzu2YhqQQ2ssp8bkE-pGUnQMR_KGAbPb__UBsDEZXQ7kyngRJBxuKOHdeR9Muzla_pMM4Xa8-xIThtmBMDoBa--7kSNfpm1g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFW0oh9tHXI2rkHa3q_GFWP3B5Vjd-BYhYDjWI-uIDuej-an0c1mzeurFlm8E1ycHa5DqGTTjtUZK-1GwU_Z7WiHeA1Qkn2dbiz1aT5d9j36D3wu4D4bzjim0ZGdfcaFF03lx2DWSWxfMgXJjI=s800-w800-h500"],
+  desc:"One of the world's premier opera houses, opened in 1869. The lavish Neo-Renaissance interior — grand staircases, imperial loges, 2,200-seat auditorium — is breathtaking even without a performance. Standing room tickets (Stehplatz) are one of the greatest cultural bargains in Europe.",
+  distance:"5-minute walk from Stephansplatz · on the Ringstrasse",transport:"U-Bahn: Karlsplatz (U1/U2/U4) · Tram: 1, 2, D to Oper",cost:"Guided tour: ~€13 · Standing tickets: €3–10 · Seated performances: €15–300+",time:"1 hour (guided tour) · 2.5–4 hours (performance)",
+  tip:"Standing room (Stehplatz) goes on sale 80 minutes before each performance — queue early for world-class opera from a few euros. Guided tours must be booked in advance.",may:"Opera season runs through late June — late May is a great time for a performance. Check wiener-staatsoper.at."},
+
+  {id:8,name:"The Ringstrasse",emoji:"🌟",cat:"Grand Imperial Boulevard · City Centre Ring Road",tag:"city",priceLabel:"Free to walk / €2.40 tram ticket",viennapass:false,free:true,
+  lat:48.2057,lng:16.3608,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFfrFS769noinXHL1NZTwKtxjvXIhJoxjURHaisn9F_gCVQD8075yUcRINWWORL_E5AUPhCIkmGTw3qYG9U8TpZW1uiH0gHEP_3cCLdNrDHwlAcA22pY8vulUkK4nMsrclksIfulrPfvbKnwg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEBObx6XrUIKmeTTvUGaPVM-8V40ppZrR5pcdpKXW9_OjXMRCRt3QuyR3lEyeGjQdWmKcY-2A4ILs-i9FZ-kPGYcFf8NOjc-NxiNHqgsjajhlVcfE1ivlrffh5K4RFFXyacuwGthhLO56-Q744=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGuYAXNbn5W2gZe7u6P10M0yu_R7hvcULRI4sTobzQWQOioRdcrxtTkaLarKohPh7nGfNP-MzG9dM-ieattnVSYSJh7tHJZRRW56hiFjmYyzdvSb-FVfllRZmTYfjA1amBWMRPzBRwsyQomLVfH-OEa=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHF84EwhH4DObFPzHrmT49gAlGSXizSWUkFqINcdL8WyYpWEpTQoyQipkQfxtjL8p6NcdKlchnbe1uLApAZjoHXXFlEsp1QXdbCQo4SGFNlcy5V0TsXin6amUviQiOEciZGKeq_rxCZUePmqQ=s800-w800-h500"],
+  desc:"Vienna's magnificent 5.3-km circular boulevard built on Emperor Franz Joseph's orders in the 1860s as a showcase of imperial power. Within a single walk you pass the State Opera, Kunsthistorisches Museum, Parliament, City Hall, Burgtheater, and the University — all built in deliberately different historical styles.",
+  distance:"Encircles the city centre — accessible from any point",transport:"Trams 1 and 2 circumnavigate the entire ring. Walk the inner ring in 60–90 minutes.",cost:"Free to walk · Tram ticket: ~€2.40",time:"1–2 hours",
+  tip:"Take Tram 1 or 2 all the way around for a cheap and spectacular architectural overview of imperial Vienna. The section between the KHM and the Burgtheater is the grandest stretch.",may:"Late May evening light along the Ringstrasse is spectacular — a walk between the Oper and the Rathaus at golden hour is one of Vienna's great free experiences."},
+
+  {id:9,name:"Naschmarkt",emoji:"🧺",cat:"Open-Air Market · Mariahilf / Naschmarkt",tag:"city",priceLabel:"Free entry / food & drinks extra",viennapass:false,free:true,
+  lat:48.1983,lng:16.3627,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEttXu7PysPnhFX5UcZZ6ihxiC_6fyXv-8Y3Pih8eaMVUXcDvX6kv36LFYL9N6zIeNKu74QZMYJcLkLbsMiN68_FqqmSNu-dn3aG0DrAZhAumlmu_5Vd19blst5Ksu7D_vQ6WT2YQr2e47Tc_M2Vhoh=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF19F8uEVoIuqUA2y-PgPysnxNn3J2rihL3T82T1FQ6j564iNJavpT3BxdV-oJ50iQZEBwFgZyJ_-8NDmYOcrg9OYc_0ptYyvrNo_m8hr68-mp5iIOlpNnAAIIo9weyvPzvO7fGEYjssdyLv20hOdKNYQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNERsnCLXTyQmysEERwAAJCSe8oEVJgAwtWD-zo659qH0-KWPjfbGlRuSEKmqP2ummWthIHvv4_k1osTbA84yESxGAotMYTBdrWLSoXHeFy4jm8UAXpR_yzIlyQKGx_0GzYCAx3ah4dhDwVZvzjUtIdlow=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGOAqanzM4qHMD5ckp1Yfq1OLkBwq_ADbDYr9LKhvWpkgfsth8JYfXomdfomIKaoUynNJUVym0poYGpgzcbCx6lbSqNolU259MhrZOkg__LxcYhvRmXKJyuvKKzB35aQmwu6o1-_J0u_nxhS41BXMq6Ng=s800-w800-h500"],
+  desc:"Vienna's most famous open-air market stretching almost 1.5 km along the Wienzeile canal. Over 120 stalls sell produce, spices, cheeses, meats and street food from across the world. Saturday mornings also bring a bustling flea market — arrive early for the best finds.",
+  distance:"1.8 km from Stephansplatz — 25-minute walk or 5 minutes by U-Bahn",transport:"U-Bahn: Kettenbrückengasse (U4) sits right at the market",cost:"Free to browse · Food & drinks extra",time:"1–2 hours",
+  tip:"Visit on a Saturday morning when the flea market runs alongside the food market. Some vendors use aggressive tasting tactics — feel free to politely decline. Best-value eating is at the Turkish, Greek and Asian stalls in the middle section.",may:"Late May is perfect weather for the Naschmarkt — outdoor seating fills up and the Saturday flea market is at peak energy."},
+
+  {id:10,name:"Prater & Riesenrad (Giant Ferris Wheel)",emoji:"🎡",cat:"Historic Park & Fairground · Leopoldstadt",tag:"culture",priceLabel:"Free park / €14 Riesenrad",viennapass:true,free:true,
+  lat:48.2155,lng:16.4002,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGg6SdvE1dEXOG7djZMEETkZjwOSLzmJsIpumljsMQ5jSbwcBCUjlqnh52HP6Lf9mVZiQHIq_tUux9xfeXWaT5pdsZXHtTuF8Q-bviHct-r_ud0GMfPBk2DZtNoPs5BVbMFyNSji2A_IFpEgw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE_cz0QWTasUyJQdI98oKONbKnUMpsTyIChIKFoQ4x6ZucMCqIeuDn0dRa_ATNQcJUVE8Nszq3riIXZKmrzFPdFI4r-mmiu2ma6dAAihfjq6wZbnYqX6RfTmbub4KAkveNN5coeN_8VA6oj=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFJHTNbxWC5t2XkSOwaRh-UR16pYR4FQzGlMmFdC5i4mBOoVW-jYhQS8XpveA1_lYJVgJ6HxuSqNrbMG0zPEgd1ZvQZY9Ghb1bhBkyXi_ono2EeMlIGBjrXAf3m5P96PtL9vyme_Xhd1KTgKQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGThTgi-OKxWdGYhy8JPXdaFYUCmpIUupaQS98gFshYgrKAI8Y_L0zrniqCNfesAt3vyEkaB7zMhx-6Tmu0YZj5tXXfe93MF9MC8=s800-w800-h500"],
+  desc:"Vienna's beloved public parkland combined with the iconic Riesenrad — a giant wooden Ferris wheel built in 1897 that featured in the Orson Welles film The Third Man. One revolution takes about 20 minutes with great views over Vienna. The park's long chestnut-lined avenue is perfect for cycling.",
+  distance:"3 km northeast of Stephansplatz — 10 minutes by U-Bahn",transport:"U-Bahn: Praterstern (U1/U2 — direct, ~10 min)",cost:"Park: Free · Riesenrad: ~€14 adults · ~€6 children",time:"1–3 hours",
+  tip:"The Hauptallee (main avenue) is 4.5 km long and beautiful for a bike ride — rental shops are near Praterstern. Fairground rides are additional cost.",may:"Late May is the sweet spot — warm enough for the park without summer crowds. The chestnut trees along the Hauptallee are usually in bloom."},
+
+  {id:11,name:"Hundertwasser House",emoji:"🌈",cat:"Architectural Landmark · Landstrasse",tag:"city",priceLabel:"Free (exterior) / ~€12 KunstHausWien",viennapass:false,free:true,
+  lat:48.2073,lng:16.3943,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGJWJ8MpYnDfO_Mp-NspNzjZOZddJI9vAFhXv_EZCgTaLlTiSaGklMPCFyt2Q9OoyrP6NOgn5poZ4BtjWf-Xz0KHP7ZUWXj4T6wkJxiypSdlK0de49QDjraImre61NxvycrGUP5pO17T5H9sCm-AWCEtQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFxbHw9dtg8OQxoF7i2L7GTEvcSq8JpB1d5nfAEPFAjGBrzPSRTTcLFrefAvqSOQdAVqm7vxvmc1xBxM4fcu1RI4QUQBBYDJQrJVo8BBPWPMnQc8VgfGzRFSzdN3l8938Fxa94YgeHshdoN5-B2qWk__w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH8f-ivwBXuzg5z7rStsDUt5WJJYjZcmcAZKSjfTlEiGyRgNcNmRVDyHEao5Y56yQiOHoAm_JfUYJhFKJsrZ-ipXDXAeHZe7hC15c4YMIixaDINvqfeQUqQIttvMzbNzDOOUOz7Mlu7wzV0LA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNED1D-_h2WrQ_apfjbxaubrRIJ6Md2FvXJDfpGr8wYf4Ohpqp3350c3ycXvxZN81oLObC0qdNEq_S00kyUOFmhf7VoU-kIBQ5Ys3UiRfyVspNCx2yF-YPft9I7Bv44S3j6C9LktzPvg7omI=s800-w800-h500"],
+  desc:"A wildly unconventional apartment building designed by artist Friedensreich Hundertwasser in 1985, standing in deliberate defiance of straight lines and conventional architecture. Trees grow from windows and rooftops, floors undulate, and the facade riots with colour. Still a functioning residential building.",
+  distance:"2.5 km east of Stephansplatz — 15 minutes by tram",transport:"Tram 1 to Hetzgasse (direct from the Ringstrasse) · U-Bahn U3 to Rochusgasse + 10-min walk",cost:"Free to view from outside · KunstHausWien (nearby museum): ~€12",time:"30–45 minutes",
+  tip:"You cannot enter the residential building itself. The Hundertwasser Village across the street has a free public courtyard with a café. The nearby KunstHausWien museum has a dedicated Hundertwasser collection.",may:"The rooftop grass and trees are lush and green in late May — the best season to see the building at its most 'alive'."},
+
+  {id:12,name:"Museum of Natural History (NHM)",emoji:"🦕",cat:"Natural History Museum · Ringstrasse · Maria-Theresien-Platz",tag:"culture",priceLabel:"€16 adults / Free under 19",viennapass:true,free:false,
+  lat:48.2052,lng:16.3598,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHkDzgsAlYm5tB1QGLLarLy_HzT8EdZXe5kCwAfyue8ebvYJVa1g386yiJiuMUI3AZTsOinepuZyE0gfGdnJidriRCQUDRyN_jpxhKDBDmt30g_5kdRX5fhCrLbyDyMXyRuMLE-XveR18JOzA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHSSmXMsLNtIzQxKv4hTkMen_c5IioBc-KIt05XBs0R9rGHXM0oBnAn-k0kZminMFhaw-D6-u1fRc9yEbZTU_tHSuprh5lYQoJ2MkiNAcCBtWl6GZvrDRBf8c5hXDLTTfifbfHRmUi3wMPMYA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH27Hst3LO1kXU0KPtsF0y4gYvPcRf5L992MH7nawH0lmEikxRXURe8d_AsLu3fIG4WoiAGpw1-Mo6wi6EeFPTK0tqZNn8B6C7SDR-dOrNWFLBcE68sN3OW4i63Fc8bDRYJ7rC3n382eNyxSw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEtVJBXf_lIjs13ApIRm6uzKlLwIx0VMGi2SQsQTCkII-Yzkmf0w0GSVeT1KppYAIMU6DmH2Ug9ep6fqE6nnYVRdREfpT9vfl1wspr9hKTTL4PFH0ItrQpSRuPdORtEMWvzsLL69ykoBe_2CQ=s800-w800-h500"],
+  desc:"A monumental natural history museum in a spectacular imperial building facing the Kunsthistorisches Museum. 39 rooms covering mineralogy, dinosaur fossils, meteorites, and human evolution, with highlights including the 25,000-year-old Venus of Willendorf figurine and one of the world's finest meteorite collections.",
+  distance:"1.2 km from Stephansplatz — 15-minute walk along the Ringstrasse",transport:"U-Bahn: Volkstheater (U2/U3) · Tram: 1, 2, D to Burgring",cost:"Adults: ~€16 · Under 19: Free",time:"2–3 hours",
+  tip:"Closed Tuesdays. Excellent for families — the dinosaur hall and meteorite collection are big hits. Pairs perfectly with the Kunsthistorisches Museum next door.",may:"A great indoor option if a May shower rolls in. Open until 9pm on Wednesdays."},
+
+  {id:13,name:"Wachau Valley",emoji:"🍷",cat:"UNESCO World Heritage Landscape · Day Trip",tag:"daytrip",priceLabel:"~€25–35 train / €16 Melk Abbey / €28 boat",viennapass:false,free:false,
+  lat:48.3896,lng:15.4749,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGY0WCiF9MN5w-8mzumrOCmPZjLl0-E5PoLXMNOBQaEA2bBaKBJ_XgnqNCpTmDUA4Nhhf6fvbIoVNgB5qt0NH_XPD5-C6xFO8JFgHJCWH9ZFK6zF7IEtslBjZsTD1YVXo1WiE2u7U_pwu_wyw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHsAxFe8fyaAzj3LJzi-PGH-oI_r-So_kNk-R3QJwO5mnO-qCbByQhtCFAMr66K50FTVoZhzEjrIHOyRV3MkP1t3hSUqJTI7eUW4sCEE7V2-Z5EjzOMtmkcQhT1iA6Zhbz-kVZJal7bNO1Z=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEXfgzoFSD-85nttyBV_P2JHHlAUO40bFTcWprrwRMPoQ9KODs_jr8ZK7QFIi_kbQ02n-ckew0mi6bHptgyD5_UFhHuZF58d7l-rliaETc4k48UIQfgd92UXytYGC-xYtP91HtCESaFGDP1iag=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFQ4gGRTJ-VZo8cjJERECanFh0eTuv_774KsnMwGmkRZQlRQ5Ri0qE_ST6_o3XJv0mJvnK_VEbLK2vyupiqPRz_j5q2jBbLYB1qf4Sydyn4g6WmIaFJT4r9_8Yq5HcU9GakTSbEjPbAx00TU7gddWgs=s800-w800-h500"],
+  desc:"A spectacular 36-km stretch of the Danube between Melk and Krems, winding through terraced vineyards, medieval villages and clifftop castle ruins — designated a UNESCO World Heritage Site. The area produces some of Austria's finest white wines, and highlights include Melk Abbey (one of the world's most impressive Baroque monasteries).",
+  distance:"80–100 km west of Vienna — ~1 hour by train",transport:"Train: Vienna HBF → Melk (~1 hr direct) or → Krems (~1 hr). Cycle or boat between the towns.",cost:"Train return: ~€25–35 · Melk Abbey: ~€16 · Boat (Melk–Krems): ~€28 · Bike rental: ~€20/day",time:"Full day",
+  tip:"Classic route: train to Melk → visit Abbey → boat to Krems → train back. Or rent bikes in Melk and cycle the 36km to Krems — one of Europe's great cycling routes. Book the boat in advance.",may:"Late May is arguably the best time — apricot trees finishing blossom, vines bright green, crowds lower than summer. Stunning."},
+
+  {id:14,name:"Wien Museum",emoji:"🏛️",cat:"City History Museum · Karlsplatz · 4th District",tag:"culture",priceLabel:"Free permanent / ~€12 exhibitions",viennapass:false,free:true,
+  lat:48.1994,lng:16.3730,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFhPnbu_NtYK9QF_WHzuL3YpQlYQT3_4uPOyAj_zJ4b7onnwMHuhoZVEJRCoCtcCpSL97tnSRj683n8YiPvAtWkl4202wkuU-cn9boHEri4o-_XFWri4h8yrbMNp6X4jwhW4K-lpoTnKgrA-w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGpMVqurYlM3L7DzXnH6VP4rhqwT5K25cZ_mGGow52b_Mp7xEJg-N21FQIJ4lp18ff3DlLKDx32KrogyjyKnNVxNLIrEvYYvauGV66EXkguSLjlHbwV7wvZuvbrAFpmOxZaREbtwxCiYQ0wlwXktYNo=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGkQH6LE3RZ_Z06HjbJCspbJ2zezQQm0YIe-mfl8NZkhFiwKKmbz-7VqylXlE7qBxUsGW-HDsCsipj8M2cecJCFejwmVgvMUoKxA9CfsoG3K0HOk2Dt9uOzUB9pwoiv9XPhNsrOKZZhZGx9XA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFgwQ8mQkR3Uo081gE-sSqkmFaCN3y42ah2VOnrFL-IdWmya8M3wUE5g9m9KFdZC7N0MDPMb6lk0hTvRNxDXN_WJZuJhOvZn3XdqnRjkpyt0GDp-mEwmKBNoaS_i6uCFyTGX1QInungvn5se2pOjBOPhQ=s800-w800-h500"],
+  desc:"A completely rebuilt museum (reopened 2023) telling the full story of Vienna from prehistoric times through the Roman settlement and Habsburg era to the 20th century. The permanent collection is entirely free and includes Roman artefacts, Biedermeier paintings, Klimt works, and a fascinating social history of the city.",
+  distance:"1.5 km from Stephansplatz — on Karlsplatz next to the Karlskirche",transport:"U-Bahn: Karlsplatz (U1/U2/U4) · Tram: 1, 2, D to Oper/Karlsplatz",cost:"Permanent collection: Free · Temporary exhibitions: ~€12",time:"1.5–2.5 hours",
+  tip:"Open until 9pm on Thursdays. The rooftop terrace has a brilliant view over the Karlskirche. Closed Mondays. Pairs perfectly with a walk through Karlsplatz and the nearby Naschmarkt.",may:"A natural pairing with Karlsplatz and Naschmarkt on a morning walking loop."},
+
+  {id:15,name:"Palais Daun-Kinsky",emoji:"🏰",cat:"Baroque Palace Interior · Freyung Square · 1st District",tag:"city",priceLabel:"Free",viennapass:false,free:true,
+  lat:48.2117,lng:16.3642,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqEJ7QEpEW33_95eKcp7rjWpzHVdGLQ9amdUhmi4HakDlnj-2FrE_uTrmsv2l38_NhN9tKDFB-RiExnZtkr3t3wRUOjxWVyCllY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGKkDe36zVHjqmQ6rqfLS9_0WRTqzEw7pX7BqbCUh7pmJ3wLthbo8kiZUt5VH_4n9NsitpSWlpOweLnm-buvFOGFYmu_dHx3OtHaC8KIoSEm9bbPKnUmcjoNvxDEIzNXAVsFgZwZVxx_o5gNg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEtZvFf_P-jQtspa4X56lX3Rs0HegSqIAdsqCxHeI832lFbfITm_f86-lxb5ZcV7q6vH7-daN7lFvAAcyIKcvu0AQreEpCBcoz6mjfAZZOIF7eS_XX9IKPOJ4QzI50mTkDFcjrnuTgSlZ5zSHOYpnrMiA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFS66_0wXhMkLgYiCqJcgcjpnIJJTLBkfBkzBwPkfMKGOnmp5QlR_2X02TfuP-bjGRMxKEg4EvOn42fJKQnV0rBFoVJmtodwFaQg7yhFKIAGvGrBaXs7VOOimryMHitNNzredBmaD_Jiviz2gSb7vphxw=s800-w800-h500"],
+  desc:"One of Vienna's finest Baroque palaces, built in 1716 by Johann Lukas von Hildebrandt. The upper floor is freely accessible to the public, revealing an extraordinary ceiling fresco, gilded stucco, and a sweeping ceremonial staircase still draped in red carpet. A genuine hidden gem that most visitors walk past without realising they can simply walk in.",
+  distance:"1 km from Stephansplatz — 12-minute walk northwest · on Freyung square",transport:"U-Bahn: Herrengasse (U3) · walk north from the Hofburg via Herrengasse",cost:"Free (public access to main hall and upper floor)",time:"15–20 minutes",
+  tip:"No ticket, no booking — just walk in. Some exhibition halls may be closed for private events. The visit is short but the ceiling fresco on the top floor is genuinely spectacular.",may:"A quick and rewarding stop on a Ringstrasse or Hofburg walking day. The Freyung square outside has a pleasant market atmosphere in warmer months."},
+
+  {id:16,name:"Paternoster Lift",emoji:"⚙️",cat:"Historic Continuous Loop Elevator · Schwarzenbergplatz",tag:"city",priceLabel:"Access currently suspended (2026)",warn:true,viennapass:false,free:true,
+  lat:48.1998,lng:16.3758,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGe1Cdq4G8GzQuVeXQ98g-3YZboMoGeoJlVzUmuqaxB657_bXS58BokvS239h2XLwIZAVEDLqc2Dev2stPrXUWQfINXqw3gggf01j175wgDArI4zC5n9Un2oKUVjjludVQKauAzUpx7a4a6Jw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE6pyu4V6rKhxww-SDCh6NZkJFtjTKLZNA7AmD8XawMNkpSY9ZeTkkQT1kHdmVGvaeqcMfMXBdCe4GwsA1zP7jedgonqgXH-ZdpmbWdzVGLO_jD6lrMa8ZH38ZieM_B9imOn7mhQNRtdhMxBQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFC53_e0Wz0EzBrKZRHiV0leR0IXzpq7HwHk03u8TU1yVSLQo3Lt2nNikFZXYUrngGl5k2SbyX65MhI67mCWH3d-2C5IIMOW1qEKDEbzwXaIS9tvX1EwyjEpbGq5W3wYVtxEjZy93EkeoSI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFsKak1waqYf3k7qg2iqTEht2xtpHmutfeF4dIKL1z3pYrKKaJHBiR_9RPsWLz0EUkJo_KxEpFVb5j7trVxW19ANfxz9RUQolTnFszX7vc3kusJwQ8WYle4_nmNj8WoR3bM2fn9xMHi8kGHHmhB33F04Q=s800-w800-h500"],
+  desc:"A paternoster is a continuously moving loop of open-sided elevator cars — no doors, no buttons, you simply step on and off as it passes. Vienna's most famous example was located in the House of Industry on Schwarzenbergplatz, a novelty beloved by curious visitors. The building also hosts excellent evening concerts.",
+  distance:"1.5 km from Stephansplatz · Schwarzenbergplatz 4",transport:"Tram D to Schwarzenbergplatz · or 20-minute walk from Stephansplatz via the Ringstrasse",cost:"Historically free to view · Currently access suspended",time:"15 minutes if accessible",
+  tip:"⚠️ As of 2026, visitor access has been suspended — call ahead (+43 1 513 0139) before visiting specifically for this. The building still hosts evening concerts which are worth considering.",may:"Combine with a walk through Schwarzenbergplatz and the nearby Belvedere gardens if access is not available."},
+
+  {id:17,name:"St. Peter's Church (Peterskirche)",emoji:"⛪",cat:"Baroque Church · Graben · 1st District",tag:"church",priceLabel:"Free / ~€35–45 evening concerts",viennapass:false,free:true,
+  lat:48.2094,lng:16.3699,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNF931lc3cJIOqTVjtutOa0rQLHG14-l8gh0eHUjVjr6JTmvnUXEdxD4Q9KKT5xPCgrB3AZkHvNjL3UIZxb5iQh1ipdCX6ITEUziUVoawaZIuT2WpneMIyKQVDxZHAWyU6ZJwZGeqAX6SgGFFw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNESfEQiMTuJfSYHQciktHjvwO80avHV1yWWCWy2QTKoGdHYiQwt_8FchJOkD-kZtE5Y1bIhSMLDprseARGSTwMnxOX7BT4TRXehSU6MWY69eBzYlErHNrQjDCnbTiRzFbAup_rKOm9ZBBUElQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEcNhv1AqCZvwBWlAyFVftAdgaC-f4JR0dogFF1BGVjMuNheLI2eM53ua122W-qmhbKIYauAOcHf_UY4ZOPhxc4OeV7YwA2tXQQDlpbI_OC-cHkLC_8jCxH08Y3OpyiJjcZg1qzgfwbMYWyUX0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHLqdTnqgKeXX_12VfTYT4gNklOix_R5UBmMEsgD9tp3rm4HSEhIFGiFZBKRQhgnNwy4lcL0xpsNSvXjAKYJ-s3seljPrtd95dTpR29Otlx6ujPUQjBEJLll6ulxbTmU_MXk1QKz6ib2x2LawgSnaXbtw=s800-w800-h500"],
+  desc:"An intimate Baroque gem tucked just off the Graben pedestrian street, built 1701–1733 with richly gilded altars, frescoes and an impressive oval dome. Compact but extraordinarily ornate — many visitors consider it even more beautiful inside than the larger Stephansdom nearby. Evening chamber concerts here are among the finest experiences in Vienna.",
+  distance:"0.3 km from Stephansplatz — 4-minute walk west along the Graben",transport:"Walk from Stephansplatz along the Graben · U-Bahn: Stephansplatz (U1/U3)",cost:"Church: Free · Evening concerts (Mozart, Vivaldi): ~€35–45",time:"20–30 minutes (church) · 1.5 hours (concert)",
+  tip:"The evening concerts in this setting are outstanding — book at peterskirche.at or at the door. Easily combined with a Graben/Kohlmarkt shopping stroll.",may:"The Graben is at its liveliest in late spring — a beautiful stretch of Vienna at its imperial best."},
+
+  {id:18,name:"Jesuit Church (Jesuitenkirche)",emoji:"✝️",cat:"Baroque Jesuit Church · Dr.-Ignaz-Seipel-Platz · 1st District",tag:"church",priceLabel:"Free",viennapass:false,free:true,
+  lat:48.2090,lng:16.3776,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFFc0un1N7nquYpCqB_PHkcwnmLxVOp1M8755dEht6uzHDRBy1m3rIUcQo57GCV2map4aVBy21_tjPUv6zg9eKb0Iee3Xek4xwwZpwg0rzBrS5BsonELHwB0Ww3ucBwCZ1ov3H4rs9LSGKA_g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGoDD36Ky7eVdSdbrcPuZmkCj0LO64BnHCDB8FYPanD3hh4TUdZ9lwKlXOcWOgrTEJibsGDy6SmkBQPtJgNwfySgkfXdjrFsI7mvQT5C1ezC6Jz9mz3RrCpdkAExQ4f4scKELXDJ6zYkMfRe7Zb3Yilxw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFN9wD3lpCjvYqzOf1da6u2eqN4S4i96eTB9oeH8g-9yBBpvivMtOahd0392g0lCqTSjVb17TIOWNiaOsVymSPP8zRGKFKCGPEZw0tkh_KR1bAcjHcn1pQK5a1p-QMkh6jN0gea8JRq7S7zKg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHEm0q0ebMq6GmGEunkBqJXNP4AT1DuBcOu_4hKBaKXFs-vpUKIhwu3kaXqrViGiqQSa8FMtVOU5kjdq-Gsy7j7p4VSttqtQV107UuVKf03qYfvMjUFou0lHmZ8IRTzc1UIptd0zEPnx9TQqQ=s800-w800-h500"],
+  desc:"One of Vienna's most extraordinary and least-visited churches — a 17th-century Jesuit masterpiece whose most jaw-dropping feature is invisible until you look up: the entire ceiling is a breathtaking trompe-l'oeil fresco painted to simulate a barrel vault that doesn't exist. The illusion is so convincing that visitors consistently stop mid-step in disbelief.",
+  distance:"0.6 km from Stephansplatz — 8-minute walk east",transport:"Walk from Stephansplatz via Wollzeile · near the old university buildings",cost:"Free",time:"20–30 minutes",
+  tip:"Look up the moment you walk in — the ceiling illusion is the entire point. One of Vienna's great hidden gems, almost always uncrowded. The square outside is one of the city's loveliest Baroque squares.",may:"A cool, quiet retreat on a warm May afternoon. Very easy to combine with Stephansdom and St. Peter's on a church-focused old-town morning."},
+
+  {id:19,name:"MuseumsQuartier (MQ)",emoji:"🎨",cat:"Cultural District · Museumsplatz · 7th District",tag:"culture",priceLabel:"Free courtyard / €18 Leopold / €14 MUMOK",viennapass:true,free:true,
+  lat:48.2033,lng:16.3586,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHYCKL_4VSrSdsZjZcn0RQlzPpJacJdX7CLxwNRv_2qYVX-TCl9E3CLSB49c2lUoS3LOJMOvuZAzaUfhj6v8U-QffHhlweTfncPVCkkjYjWd0rW4u3S8H8XazQwJsJcjh3iSqcexgCDEc6UMs0=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEtxCCoKMdNvcmhFSNBXyYuIbHzicu3vMRIdDlQFwX0mmbiI0CpBZyDLbGf5GmZOlaaYZ6lHdcTBG0c0kvjufrWOj1tuQQjFYT-cuVTCXEFof_DkBBU5yQAp3yXvJkQtZX5wtmlwrI-ah0aU88=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG57ZXiERVvgkRUlNwGtVVJOu40_XqdYd3Rh1MPQxotWJEGP3xlrff0qngRtYfu2uMzuu_hOKLmiK4HRziYlNBrx3qUDSWOvg9E1FDSEYgabuI0C2y2Kt_ADW3uMf_5a3dUNAyk_QryJzUBLNc=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNETyCsQzDO9TlbHhBcQ3k98QTuCfP1zW4qSjj_OzSWwe63vop17KtOOQfEAR3LQkrEr1EMNd_yxG7QhVk37I4JHqQGh8e975kePW5mysgtMvj-7zwWACS9Lbo2ULypm8rll_q5-3nIjc48ji9avc32JHQ=s800-w800-h500"],
+  desc:"One of the largest cultural complexes in the world, occupying the former Habsburg imperial stables. The MQ houses the Leopold Museum (world's largest Egon Schiele collection, plus superb Klimt), MUMOK (Museum of Modern Art), and a dozen smaller venues. The vast central courtyard is one of Vienna's great social spaces, packed with locals on warm evenings.",
+  distance:"1.2 km from Stephansplatz — 15-minute walk",transport:"U-Bahn: Museumsquartier (U2) — direct · or Volkstheater (U2/U3) + 5-min walk",cost:"Courtyard: Free · Leopold Museum: ~€18 · MUMOK: ~€14",time:"2–4 hours (one museum) · Full day (both main museums)",
+  tip:"The Leopold Museum's Schiele collection is world-class and less crowded than the Belvedere. The courtyard is free and worth visiting just to sit and soak up the atmosphere.",may:"The MQ courtyard fills with Viennese locals on warm May evenings — one of the best places in the city to experience everyday Viennese life."},
+
+  {id:20,name:"Austrian Parliament & Rathausplatz",emoji:"🏛️",cat:"Neoclassical Parliament & Gothic City Hall Square · Ringstrasse",tag:"city",priceLabel:"Free (both — Parliament tours must be booked)",viennapass:false,free:true,
+  lat:48.2077,lng:16.3585,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEBObx6XrUIKmeTTvUGaPVM-8V40ppZrR5pcdpKXW9_OjXMRCRt3QuyR3lEyeGjQdWmKcY-2A4ILs-i9FZ-kPGYcFf8NOjc-NxiNHqgsjajhlVcfE1ivlrffh5K4RFFXyacuwGthhLO56-Q744=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFfrFS769noinXHL1NZTwKtxjvXIhJoxjURHaisn9F_gCVQD8075yUcRINWWORL_E5AUPhCIkmGTw3qYG9U8TpZW1uiH0gHEP_3cCLdNrDHwlAcA22pY8vulUkK4nMsrclksIfulrPfvbKnwg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHF84EwhH4DObFPzHrmT49gAlGSXizSWUkFqINcdL8WyYpWEpTQoyQipkQfxtjL8p6NcdKlchnbe1uLApAZjoHXXFlEsp1QXdbCQo4SGFNlcy5V0TsXin6amUviQiOEciZGKeq_rxCZUePmqQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGuYAXNbn5W2gZe7u6P10M0yu_R7hvcULRI4sTobzQWQOioRdcrxtTkaLarKohPh7nGfNP-MzG9dM-ieattnVSYSJh7tHJZRRW56hiFjmYyzdvSb-FVfllRZmTYfjA1amBWMRPzBRwsyQomLVfH-OEa=s800-w800-h500"],
+  desc:"Two of the Ringstrasse's grandest buildings side by side: the Austrian Parliament (1883), a dramatic Greek Revival temple fronted by the Athena Fountain with free guided tours of its gilded debating chambers; and the neo-Gothic Vienna Rathaus (City Hall, 1883), whose 98-metre tower and fairy-tale facade overlook Rathausplatz.",
+  distance:"1.5 km from Stephansplatz · on the Ringstrasse",transport:"Tram 1, 2, D to Rathausplatz/Burgtheater · U-Bahn: Rathaus (U2)",cost:"Parliament guided tour: Free (book online) · Rathausplatz: Free",time:"1–1.5 hours for both",
+  tip:"Parliament tours must be booked online in advance at parlament.gv.at — they fill fast and require ID. Thursday tours run until 9pm. The Rathausplatz park gardens are beautifully lit in the evenings.",may:"The Rathausplatz park is in full bloom in late May. An evening Ringstrasse walk from here past the Burgtheater is one of Vienna's great free experiences."},
+
+  {id:21,name:"Austrian National Library (Prunksaal)",emoji:"📚",cat:"Imperial State Hall · Josefsplatz · 1st District",tag:"culture",priceLabel:"€11 adults / €8 students",viennapass:false,free:false,
+  lat:48.2063,lng:16.3669,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFFMJiD6i8EFzCMKNKJ2vsB-ZlKatE_6od1r0s0ZTlzPnwBquA9HsqMzDCwPZBhSBZUQ6eKKAMwD_z-NRvHUlLT93_-Qntp55HWns0wXf95fv63IV_wASxmGXo7wibxDx7ER3ce4M2vNGSaFg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHq39BUx7odiSrSDAAyML8w0Z-WlnUDP7XnYy28sFfj85U5NxeHIIiCwMlDIa9EP85S2vnxO2X3LNmr0Amqp1VWFqFkxKOwzh2kA2SLENvokKuETiqpzzadYGoORzCIalNiQ1hv5X82rdbtdas=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG3pCq3tKEo9DRCsKAxkEZ98WeBVD_W9U6StOyewhzPaI7wMHPguS90zC7SMn5GTTZ-6--AEX89idLlDnL3OgxH9x-5_mY4EvXxqToE0a-ftHClO3fXNYO-TL9_PdmmytxzBZ7UWVOrrLZqpwE=s800-w800-h500","https://lh3.googleusercontent.com/places/ANXAkqF4hncM4-nBmqTzVvKl3qnUhKBAov2s9KN2fXtDTPV_FIzfQ8tt6ZKav_ouWLrpi--5ToT7hvjs5eG2lBNkNgkQ8R_kopl1mcQ=s800-w800-h500"],
+  desc:"The greatest Baroque library in the world, commissioned by Emperor Charles VI and completed in 1726. The Prunksaal (State Hall) is a single breathtaking space — a 77-metre frescoed ceiling vault supported by marble columns, lined floor-to-ceiling with 200,000 leather-bound volumes. Frequently described as life-changing by visitors.",
+  distance:"0.8 km from Stephansplatz — on Josefsplatz, tucked between the Hofburg and the Augustinerkirche",transport:"Walk from Stephansplatz via Augustinerstrasse · U-Bahn: Herrengasse (U3) or Karlsplatz",cost:"Adults: ~€11 · Students: ~€8",time:"45–60 minutes",
+  tip:"Arrive at opening for near-solitude — very busy after 11am. Open until 9pm on Thursdays. The visit is essentially one magnificent room — but what a room.",may:"A natural anchor for a Hofburg-area half-day — combine with the Augustinerkirche next door and the Albertina a short walk away."},
+
+  {id:22,name:"Augustinerkirche (Augustinian Church)",emoji:"⛪",cat:"Imperial Gothic Court Church · Augustinerstrasse · 1st District",tag:"church",priceLabel:"Free / Heart Crypt free after Sunday mass",viennapass:false,free:true,
+  lat:48.2059,lng:16.3676,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFWpQtjOq38hVldp8jK8LBW4eUZSKu38TqvlOzKWKKPXhVqELAIicBMN_hY7dk-6CdDoLFCeacQMDHpaXAu9vwjzoN6HSg_zlQv0YIIxsp1EbYvnjCCqVVWQlG4ZHNf0WiUXe5hA17JMkkJIA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHUPwr3XoyxShS5ky3cbcLsBz2DdVgd__ej2GyjxuD0zgU-rml1btS8VsE162cjqewGFYQ7C_jGRHJMuQEcZWncyGnY4kjwUJHBC6-FWzgpfb8XxyzQbN_Y2KKa_6LI2pqyyttORWqWnqbY82Y=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFUnRRRZcWwbQO8ae2m9KHTUmbJj6QB7X6P8UFtoMU1jc6S8w4kSQ_KpP7LHtbntvQOtVpb_cH-gRBhNAC2IfD5nNPKFHjudFEXD83t8hljCMHl-Mo18zAhnZDbMMLxsXAdXuaO5BlzC8sdCA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFCTMPKH2vF6XloOaCbhC-SanagTLOKghGfW-8MSWNAcnaKFPMDetnRdLTzh36O1Ui_dOIaRHFxBQaHvl0jRScIJKA1poL9IiiNiVyfXB0qcgPfs7xqusR0UraSOevT64tD-9r66kiXuzimtkw=s800-w800-h500"],
+  desc:"The Habsburg imperial court church for centuries, site of royal weddings including Marie Antoinette's marriage in 1770. The soaring Gothic interior is unusually austere for Vienna. In the Herzgruft (Heart Crypt) are 54 silver urns containing the hearts of Habsburg rulers — a uniquely macabre piece of dynastic history.",
+  distance:"0.7 km from Stephansplatz — adjacent to the National Library on Augustinerstrasse",transport:"Walk from Stephansplatz · adjacent to the Albertina museum and the National Library",cost:"Free · Heart Crypt accessible on Sunday mornings after 11am mass",time:"20–30 minutes",
+  tip:"The Heart Crypt is only regularly accessible after Sunday 11am mass — check with the church for current hours. The Sunday mass itself (often with choir) is one of the finest free musical experiences in Vienna.",may:"Sunday morning mass with choir in late May is a beautiful experience — a window into centuries of Viennese imperial tradition. Free and open to all."},
+
+  {id:23,name:"Votivkirche",emoji:"🕍",cat:"Neo-Gothic Votive Church · Rooseveltplatz · 9th District",tag:"church",priceLabel:"Free / ~€15–18 immersive light show",viennapass:false,free:true,
+  lat:48.2154,lng:16.3591,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEJeDUdn_2o68kpRxL-98_0YG4FbfGT0RpVY5YI31F5Dv6Uw5h2XyQEz_WhTY2Aw5SDTKYCNimxrwutRyFm62-f6Mnb8dfrMc4ry1_17M3Iy7hGR2IxiZZa6xFyoZNkI6Cg28nZlx32FyilZZg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG1iGemnAZ3C7n_CR6wknmYIj6aqijPwZkqkESNdCHjmt4UoTtgj5tmVVCVLeLsvOLauSptwWOqnAjluLDEg8hEbXrrAMWVdAuRta0cE5kRib88MGxucCuM4Jsw2YHGJzr5YmA3kUlZDtOo2mA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG0N3kDNR3bj8iHNv9viJVOOTmaTM3L4ro82ij6ys5H6OHD0czZoho9nspia_ktbuEdEeEEOuHPDb4T3VpP5HE4MpuMkl3IP4VEBqducKxzGKnwr41J6vld9CURbvx9fb5l4ij08vhaI8zhrw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH0qgVlMtNlZkHrw2V646TEvtn_ZOY5qxCJQ5UplrEXwmR1ztbc2dIFqne-0fHw6wmb6yEbe389T4-OQX3WDTW9GO2KQzDsZ7Ha0RkEFTfO5nEZyMJOmW6SxwmqHxkcjpcOPR9uNLy0TDLcpw=s800-w800-h500"],
+  desc:"A soaring neo-Gothic church built 1856–1879 to give thanks after a failed assassination attempt on Emperor Franz Joseph, with twin 99-metre spires ranking among Vienna's most striking skyline features. The vast stained-glass windows are among the finest in Austria. An immersive light show projected onto the interior in recent years adds a spectacular modern layer.",
+  distance:"1.8 km from Stephansplatz — on Rooseveltplatz near the university",transport:"Tram D to Schottentor · U-Bahn: Schottentor (U2) — 5-minute walk",cost:"Church: Free · Immersive light show: ~€15–18 — book in advance at votivkirche.at",time:"20–30 min (church) · 45 min (light show)",
+  tip:"The light show sells out — book well ahead. Sit towards the back (row 25+) for the full panoramic effect. The church is unheated — bring a layer even in May. Closed Mondays.",may:"The Ringstrasse walk from the Rathaus to the Votivkirche is one of Vienna's loveliest in late spring. Combine with a coffee at one of the university-quarter cafés nearby."}
+];
+
+// ── SLIDESHOW STATE ────────────────────────────────────────────────────────
+const ssState = {};
+P.forEach(p => ssState[p.id] = { cur: 0, total: p.photos.length });
+
+function goSlide(id, idx) {
+  const ss = document.getElementById('ss-' + id);
+  if (!ss) return;
+  const slides = ss.querySelectorAll('.slide');
+  const dots = ss.querySelectorAll('.dot');
+  slides[ssState[id].cur].classList.remove('active');
+  dots[ssState[id].cur] && dots[ssState[id].cur].classList.remove('active');
+  ssState[id].cur = idx;
+  slides[idx].classList.add('active');
+  dots[idx] && dots[idx].classList.add('active');
+}
+function changeSlide(id, dir) {
+  const s = ssState[id];
+  goSlide(id, (s.cur + dir + s.total) % s.total);
+}
+
+function toggleDetails(id) {
+  const btn = document.getElementById('dtbtn-' + id);
+  const body = document.getElementById('dtbody-' + id);
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('.arrow').textContent = open ? '▲' : '▼';
+  btn.querySelector('.label').textContent = open ? 'Less details' : 'More details';
+}
+
+function priceBadge(p) {
+  const isFree = p.priceLabel.startsWith('Free') && !p.priceLabel.includes('/');
+  const color = isFree ? '#7de0a0' : (p.warn ? '#FFB347' : '#fff');
+  return `<span style="color:${color}">${p.priceLabel}</span>`;
+}
+
+// ── RENDER CARDS ──────────────────────────────────────────────────────────
+const grid = document.getElementById('places-grid');
+P.forEach(p => {
+  const isDay = p.tag === 'daytrip';
+  const slides = p.photos.map((url, i) =>
+    `<div class="slide${i === 0 ? ' active' : ''}"><img src="${url}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.style.display='none'"></div>`
+  ).join('');
+  const dots = p.photos.map((_, i) =>
+    `<span class="dot${i === 0 ? ' active' : ''}" onclick="goSlide(${p.id},${i})"></span>`
+  ).join('');
+
+  const warningRow = p.warn ? `<div class="info-row warn"><span class="info-label">⚠️ Warning</span><span class="info-value">Access to the paternoster is currently suspended as of 2026. Call ahead: +43 1 513 0139. The building hosts evening concerts as an alternative.</span></div>` : '';
+
+  const card = document.createElement('div');
+  card.className = 'place-card';
+  card.dataset.tag = p.tag;
+  card.dataset.viennapass = p.viennapass ? 'true' : 'false';
+  card.dataset.free = p.free ? 'true' : 'false';
+  card.id = 'card-' + p.id;
+  card.innerHTML = `
+    <div style="position:relative">
+      <div class="slideshow" id="ss-${p.id}">
+        ${slides}
+        ${p.photos.length > 1 ? `
+        <button class="slide-btn slide-prev" onclick="changeSlide(${p.id},-1)">&#8249;</button>
+        <button class="slide-btn slide-next" onclick="changeSlide(${p.id},1)">&#8250;</button>
+        <div class="slide-dots">${dots}</div>` : ''}
+      </div>
+      <span class="cat-badge${isDay ? ' daytrip-badge' : ''}">${isDay ? '🚌 Day Trip' : p.cat.split('·')[0].trim()}</span>
+      ${p.warn ? '<span class="warn-badge">⚠️ Access suspended</span>' : ''}
+      <div class="price-badge">${priceBadge(p)}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">${p.emoji} ${p.name}</div>
+      <div class="card-hint">🗺️ Click card to locate on map</div>
+      <div class="card-category">${p.cat}</div>
+      <div class="card-desc">${p.desc}</div>
+      <button class="details-toggle" id="dtbtn-${p.id}" onclick="toggleDetails(${p.id})">
+        <span class="label">More details</span> <span class="arrow">▼</span>
+      </button>
+      <div class="details-body" id="dtbody-${p.id}">
+        <div class="info-row"><span class="info-label">📍 Distance</span><span class="info-value">${p.distance}</span></div>
+        <div class="info-row"><span class="info-label">🚇 Getting There</span><span class="info-value">${p.transport}</span></div>
+        <div class="info-row"><span class="info-label">💶 Entry</span><span class="info-value">${p.cost}</span></div>
+        <div class="info-row"><span class="info-label">🕒 Time</span><span class="info-value">${p.time}</span></div>
+        ${warningRow}
+        <div class="info-row tip"><span class="info-label">💡 Tip</span><span class="info-value">${p.tip}</span></div>
+        <div class="info-row may"><span class="info-label">🌸 Late May</span><span class="info-value">${p.may}</span></div>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', function(e) {
+    if (e.target.closest('.slide-btn') || e.target.closest('.dot') || e.target.closest('.details-toggle') || e.target.closest('a')) return;
+    map.flyTo([p.lat, p.lng], 15, {duration: 1.0});
+    setTimeout(() => markers[p.id].openPopup(), 1100);
+    document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+    card.classList.add('highlighted');
+    setTimeout(() => card.classList.remove('highlighted'), 2500);
+  });
+});
+
+// ── LEAFLET MAP ────────────────────────────────────────────────────────────
+const map = L.map('map').setView([48.207, 16.370], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+}).addTo(map);
+
+const tagColors = { city: '#1B3A6B', culture: '#5C3317', church: '#4A0A20', daytrip: '#1a4a1a' };
+const markers = {};
+
+P.forEach(p => {
+  const color = tagColors[p.tag] || '#8B1A2B';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:${color};color:#fff;border:2.5px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:pointer">${p.emoji}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20]
+  });
+  const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+  m.bindPopup(`
+    <div style="font-family:sans-serif;min-width:200px">
+      <strong style="font-size:.92rem">${p.emoji} ${p.name}</strong><br>
+      <span style="font-size:.78rem;color:#666;font-style:italic">${p.cat}</span><br>
+      <span style="font-size:.78rem;color:#555;margin-top:2px;display:block">${p.priceLabel}</span>
+      <a href="#card-${p.id}" onclick="scrollToCard(${p.id})" style="display:inline-block;margin-top:6px;font-size:.78rem;color:#8B1A2B;font-weight:600;text-decoration:none;border:1px solid #F5D0D5;padding:3px 9px;border-radius:5px">View card ↓</a>
+    </div>`);
+  markers[p.id] = m;
+});
+
+function scrollToCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  const panel = document.getElementById('cards-panel');
+  panel.scrollTo({ top: card.offsetTop - panel.offsetTop - 10, behavior: 'smooth' });
+  document.querySelectorAll('.place-card').forEach(c => c.classList.remove('highlighted'));
+  card.classList.add('highlighted');
+  setTimeout(() => card.classList.remove('highlighted'), 2500);
+}
+
+function filterCards(tag, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let count = 0;
+  document.querySelectorAll('.place-card').forEach(c => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'viennapass') show = c.dataset.viennapass === 'true';
+    else if (tag === 'free') show = c.dataset.free === 'true';
+    else show = c.dataset.tag === tag;
+    c.classList.toggle('hidden', !show);
+    if (show) count++;
+  });
+  document.getElementById('count-badge').textContent = count + ' place' + (count === 1 ? '' : 's');
+  P.forEach(p => {
+    let show;
+    if (tag === 'all') show = true;
+    else if (tag === 'viennapass') show = p.viennapass === true;
+    else if (tag === 'free') show = p.free === true;
+    else show = p.tag === tag;
+    if (show) { if (!map.hasLayer(markers[p.id])) markers[p.id].addTo(map); }
+    else { if (map.hasLayer(markers[p.id])) markers[p.id].remove(); }
+  });
+}
+</script>
+</body>
+</html>

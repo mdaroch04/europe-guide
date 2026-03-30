@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algarve Travel Guide</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --blue:#0B4F6C;--blue-mid:#1A7BA4;--blue-light:#D0EAF5;
+  --gold:#C9961A;--gold-light:#FDF3D8;
+  --cream:#FAF8F3;--white:#fff;
+  --text:#1A1A1A;--text-mid:#555;--text-light:#888;
+  --border:#E0DDD6;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Source Sans 3',sans-serif;
+  --header-h:64px;--filter-h:50px;
+}
+.header-inner{display:flex;align-items:center}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--cream);color:var(--text);font-size:14px}
+.site-header{height:var(--header-h);background:var(--blue);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;position:relative;z-index:200}
+.site-header h1{font-family:var(--serif);font-size:1.45rem;color:#fff;font-weight:700;white-space:nowrap}
+.site-header p{color:#8dcde8;font-size:.78rem;margin-left:14px;display:flex;gap:10px;flex-wrap:wrap}
+.header-tag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#c0e8f8;font-size:.72rem;padding:3px 10px;border-radius:20px}
+.filter-bar{height:var(--filter-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px;position:relative;z-index:150;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.filter-label{font-size:.72rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;white-space:nowrap}
+.filter-btn{background:var(--white);border:1.5px solid var(--border);color:var(--text-mid);font-size:.76rem;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--sans);transition:all .18s;white-space:nowrap}
+.filter-btn:hover,.filter-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.count-badge{background:var(--blue-light);color:var(--blue);font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:10px;margin-left:auto;white-space:nowrap}
+.layout{display:flex;height:calc(100vh - var(--header-h) - var(--filter-h));overflow:hidden}
+.map-panel{width:42%;flex-shrink:0;position:relative;border-right:3px solid var(--gold)}
+#map{width:100%;height:100%}
+.cards-panel{flex:1;overflow-y:auto;padding:16px;background:var(--cream)}
+.cards-panel::-webkit-scrollbar{width:6px}
+.cards-panel::-webkit-scrollbar-track{background:#f0ede6}
+.cards-panel::-webkit-scrollbar-thumb{background:#c0bbb0;border-radius:3px}
+.places-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.place-card{background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
+.place-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.place-card.hidden{display:none}
+.place-card.highlighted{outline:3px solid var(--gold);outline-offset:0}
+.slideshow{position:relative;height:190px;overflow:hidden;background:var(--blue);flex-shrink:0}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .4s ease}
+.slide.active{opacity:1}
+.slide img{width:100%;height:100%;object-fit:cover;display:block}
+.slide-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.42);backdrop-filter:blur(3px);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .18s;line-height:1}
+.slide-btn:hover{background:rgba(0,0,0,.7)}
+.slide-prev{left:7px}.slide-next{right:7px}
+.slide-dots{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:10}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45);cursor:pointer;transition:background .18s}
+.dot.active{background:#fff}
+.cat-badge{position:absolute;top:9px;left:9px;background:rgba(11,79,108,.82);backdrop-filter:blur(4px);color:#c0e8f8;font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:14px;text-transform:uppercase;letter-spacing:.05em;z-index:10}
+.daytrip-badge{background:rgba(201,150,26,.88);color:#fff}
+.beach-badge{background:rgba(11,108,85,.82);color:#c0f8ea}
+.price-badge{position:absolute;bottom:26px;right:8px;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);color:#fff;font-size:.72rem;font-weight:600;padding:4px 8px;border-radius:7px;z-index:10}
+.price-free{color:#7de0a0}
+.card-body{padding:12px 14px;display:flex;flex-direction:column;flex:1}
+.card-title{font-family:var(--serif);font-size:1.15rem;font-weight:800;color:var(--blue);margin-bottom:1px;line-height:1.25}
+.card-hint{font-size:.65rem;color:var(--text-light);margin-bottom:1px}
+.card-category{font-size:.72rem;color:var(--text-light);margin-bottom:8px;font-style:italic}
+.card-desc{font-size:.95rem;color:var(--text-mid);line-height:1.6;margin-bottom:10px}
+.details-toggle{display:flex;align-items:center;gap:6px;background:none;border:1.5px solid var(--blue-light);color:var(--blue-mid);font-size:.75rem;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:var(--sans);transition:all .18s;width:100%;justify-content:center;margin-top:auto}
+.details-toggle:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.details-toggle .arrow{transition:transform .25s;display:inline-block}
+.details-toggle.open .arrow{transform:rotate(180deg)}
+.details-body{display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px}
+.details-body.open{display:block}
+.info-row{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid #F0EDE6;padding:5px 0;gap:4px}
+.info-row:last-child{border-bottom:none;padding-bottom:0}
+.info-label{font-size:.68rem;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.04em;padding-top:1px;line-height:1.4}
+.info-value{font-size:.76rem;color:var(--text);line-height:1.45}
+.info-row.tip{background:var(--gold-light);border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.tip .info-label{color:var(--gold)}
+.info-row.may{background:#EDF7ED;border-radius:5px;padding:6px 8px;margin-top:4px;border-bottom:none;grid-template-columns:72px 1fr}
+.info-row.may .info-label{color:#2E6B3E}
+.map-legend{position:absolute;bottom:12px;left:10px;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.72rem;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.legend-item:last-child{margin-bottom:0}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0}
+.back-btn{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:var(--sans);font-size:.75rem;font-weight:600;padding:6px 14px;border-radius:20px;text-decoration:none;transition:background .18s;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.22)}
+@media(max-width:900px){html,body{overflow:auto;height:auto}.layout{flex-direction:column;height:auto;overflow:visible}.map-panel{width:100%;height:320px;border-right:none;border-bottom:3px solid var(--gold)}.places-grid{grid-template-columns:1fr}.site-header p{display:none}.card-hint{display:none}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <h1>🇵🇹 Algarve Travel Guide</h1>
+    <p>
+      <span class="header-tag">🌞 Late May Edition</span>
+      <span class="header-tag">📸 Photo slideshow</span>
+      <span class="header-tag">📍 29 places</span>
+    </p>
+  </div>
+  <a class="back-btn" href="index.html">← Back to all cities</a>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="filterCards('all',this)">All Places</button>
+  <button class="filter-btn" onclick="filterCards('town',this)">Towns &amp; Culture</button>
+  <button class="filter-btn" onclick="filterCards('beach',this)">Beaches &amp; Coast</button>
+  <button class="filter-btn" onclick="filterCards('nature',this)">Nature &amp; Viewpoints</button>
+  <button class="filter-btn" onclick="filterCards('daytrip',this)">Further Afield</button>
+  <button class="filter-btn" onclick="filterCards('free',this)">🆓 Free Entry</button>
+  <span class="count-badge" id="count-badge">29 places</span>
+</div>
+
+<div class="layout">
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1B3A6B"></div> Towns &amp; Culture</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0B6C55"></div> Beaches &amp; Coast</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4A6B0A"></div> Nature &amp; Viewpoints</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8B3A1A"></div> Further Afield</div>
+      <div class="legend-item" style="border-top:0.5px solid #ddd;margin-top:5px;padding-top:5px"><span style="font-size:.7rem;color:#888">🆓 Free Entry = 22 places with free access</span></div>
+    </div>
+  </div>
+  <div class="cards-panel" id="cards-panel">
+    <div class="places-grid" id="places-grid"></div>
+    <div style="text-align:center;padding:16px 0 6px;font-size:.75rem;color:var(--text-light)">Algarve Travel Guide · Entry prices approximate 2024/25 · Bom viagem! ☀️</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const P = [
+  {id:1,name:"Faro Old Town (Cidade Velha)",emoji:"🏛️",cat:"Historic Walled City · Regional Capital",tag:"town",priceLabel:"Free / €5 Cathedral",free:true,
+  lat:37.0133,lng:-7.9349,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFhn_Efap6EIEccg_icju3_3hQP2GK5XpQ_eUGj1gVD6IjXvuaKJPSIZwsQq0o4WEn2msmMtjFEQNMG1hztmHhX9E6-k-dsZW-Lts_0rZ73MEcCpOudJRGMmtNINa9BFC0mGHvVvH14wJvzWQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGVfJDXDjrhVJ2MRGu32bw3hTHFzU5ohxwEiqhrBTOu0phWVuk_x9ye5DMA_4nOXbVAjXPL7Se8jkWfoyficxWwQIZO9pDRsKawNou0Eb1viOTydDq30Q4QHQI6ogk0j5YivkdD7dOyp5iA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHgYVqiNuPcUcAqc6dlcTadBFiuXsLzRxCx3F14EJ4UHFHt6lFG1A-yCCvIkxAZ27h-W-BAih6Tf66f1ihz1f4cmcTvjDU6cdzrYj9eKkLA-lmI3Ep4_xIzGzbCQLuUJh-dQGqk3iZIbCooMjw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEe7oNNmwgKral5HE5jY0Y2s8THABU_CJueXNkP-6oRFAuhtIvOM0A8yZ99sTsPwyn8JRnLsbibfKatwIbQDZZ2mEOkLHL7oysWLXFXrkjba8MJ5wFQmSaALudUVxdSqKlOvDNK0eSEZUdpwWkVuNorMg=s800-w800-h500"],
+  desc:"Faro is the Algarve's capital and has the region's only truly preserved old town, enclosed by Roman and Moorish walls accessible on foot. The walled Cidade Velha is compact, atmospheric and often bypassed by tourists heading straight to the beach resorts — which means it's genuinely quiet. The Cathedral's bell tower gives the best elevated view of the Ria Formosa lagoon below.",
+  distance:"City centre reference point — Faro Airport is 6 km west",transport:"Walk from Faro Airport (taxi ~€10) or from the train/bus station (10 min walk)",cost:"Walled town: Free · Cathedral & tower: €5 adults",time:"1.5–2 hours",
+  tip:"The bone chapel inside the Church of Nossa Senhora do Carmo (just outside the walls) houses the bones of 1,245 monks and is one of the most striking in Portugal — entry ~€4. Combine with a walk along the harbour promenade.",
+  may:"Late May Faro is warm (25°C), uncrowded and fully in season. The Ria Formosa estuary viewed from the cathedral tower is stunning on clear days."},
+
+  {id:2,name:"Lagos Old Town & Beaches",emoji:"🏖️",cat:"Historic Town & Beach Hub · Western Algarve",tag:"town",priceLabel:"Free town / Free beaches",free:true,
+  lat:37.1027,lng:-8.674,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEVmMTTGgmN8j6RmJ0k6aeVK66oh4sFVh6bN2Km_69ZQhevJdsASxZ4f3q41PhV7GN7Wmo-TDKFEGZBc4BPUaooAH6pihV33_jAoG-swcDQ_cSTD5yz9QUnGbl6f8i8LoJB6FdFqzETLlpPw3Q2SGcaCQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGgUEjkI8sPbLZkP7ShuZjCjjPF4Lo5jztjn0ZBR9AtmUC_wGBym4q_zm7J-c5UBIM7JJi73_sno7nlD3YnJ6FYGH7mbvwQmLoGrZXmM_1FbVCtDeW2HqNGGJAhcsYUgGYXuRtV4THAO4Tj=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHxioRuX-ZgHuHogAmloU60tgfSzUwrvWOnwxWP4glkr3gF_y1FlHDI4PsJSZVVjBM9PY3K_S8DUByGwlSCrNCkq13niogd9mHI0PYfW7WIH0ETRyHUNYDIGFwMZ5T9s1ZKG0VKAAHw-1Zg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHA-ctRkpctYX1XqQCzjH3GhLFBJAmofl7h79lyDFKn1qb95FNCOSjLFX599MhUqpb_ikcyOeb7ZW58s4mc-AOGPGAX6WfIV-zQNxB7mgSGYrMc1FdYHU-O2q21hWJgQrM7NaPpW4dKdUH3=s800-w800-h500"],
+  desc:"The most charismatic town on the western Algarve — a compact whitewashed historic centre ringed by 17th-century town walls, with a string of dramatic cliff-backed beaches within walking distance. Lagos is the best base for the west: sociable enough for nightlife, close enough to wilderness coast for day adventures, and with an authentic Portuguese centre that hasn't been entirely consumed by tourism.",
+  distance:"85 km west of Faro · 1hr by train from Faro (direct, hourly)",transport:"Train from Faro (€6.50, ~1hr) · Bus from Faro (Rede Expressos, ~1hr 20min) · Walk everywhere in town",cost:"Town: Free · Beaches: Free",time:"Half day to full day (or base for multiple days)",
+  tip:"The tunnel beaches just east of Ponta da Piedade (Praia do Camilo, Praia de Dona Ana) are reached through rock-carved passages at low tide — check tide times. The town walls walk takes 20 minutes and gives fine rooftop views.",
+  may:"Late May is ideal — water temperature around 19°C, sun sets after 9pm, and the town is lively but not overwhelmed. Peak season crowds don't hit until late June."},
+
+  {id:3,name:"Ponta da Piedade",emoji:"🪨",cat:"Sea Stacks & Grottoes · Lagos (30 min walk south)",tag:"beach",priceLabel:"Free / ~€20 boat tour",free:true,
+  lat:37.0799,lng:-8.6686,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFa1_wpiwU_GRBrwjffLJJNvkx1b86vJA_pqAA_7y1G5BqinV9zgdCi4XImq56F5AjFuUX7CD7RrqEx7IsUj5yaPeAcL3U-1fMpNWnYeh2ZWeexUUID6lkvBSn8P1QFiw0C-MOrgI1zMWwn-w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHsVzh4LB3J-z7Ve0SDjMKckdVOr8JhzEctQ52UX0YOmsiD5kjm8UezCtjmt1J2etuibuRw8XGjJGVrTKnAVoWFvYhaYqHOCQx1cuPtjJ1BS0txzcXJsRq0xxG3N3-FoBP6DuZrkMQ6Ngr3fw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHl6v5dJn5_Oq3r2-NIikjHcFr8mur4NfxJZWb0jSvj61C8_5_oUHuQAe9oFnhnz7g4-kQhl2KEEWzs6V5nfJB-PZT2_2ORrmdgCwa7EZoe8nGtYnrZBJ5f-vRzyO4GxIdXxmoOOr3LVMJemiURoTMK=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEb1O7HLx2pLeC-B_rXAQbaCSYLeY-v4B4M02A0610Keck8r72n5r7MxDcjinxvPO9oh5NYIbOG2XCS40o_Pw9gKJEXzF-HEWW1jnH2iNtb_ixaQfsAWz2LD_2bGs7rtn4Tg1EMk23tqjiR=s800-w800-h500"],
+  desc:"The most dramatic coastal scenery on the Algarve — golden limestone sea stacks, arches, and grottoes rising from impossibly turquoise water at the southwestern tip of Lagos. The boardwalk from the car park winds along the cliff edge with vertiginous views, and a staircase descends to the water where small boats operate grotto tours. At sunset the rock formations glow amber.",
+  distance:"2 km south of Lagos town centre · 30-min walk or 5-min taxi",transport:"Walk south from Lagos along the coast path · Taxi from Lagos town: ~€6",cost:"Free to walk · Boat grotto tours: ~€15–20 (20–30 min)",time:"1–1.5 hours",
+  tip:"The sunset view from the cliff walk back toward Lagos (facing northwest) is extraordinary. Boat tours depart from the bottom of the staircase — morning tours have calmer water. Avoid noon when shadows kill the water colour.",
+  may:"Late May afternoon light on the amber rock is at its finest around 5–7pm. The boats operate from April onwards — May has smaller crowds and gentler sea conditions than summer."},
+
+  {id:4,name:"Praia da Marinha",emoji:"🏝️",cat:"World-Class Beach · Lagoa · Central Algarve",tag:"beach",priceLabel:"Free / ~€5 sunbed rental",free:true,
+  lat:37.0897,lng:-8.4131,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNH_9jZSUaMX7jM1R25PMkG4p9FcdbmJMi4OrODlBLQdEx8Qe_tMW03XMec1z7nSr4lOzMvB_GcMsG6zZmhewFbagnjaAKipntPj42DgE3_nrKwo0FT7yRQ__CsLh0LoLH73jTtqNU0Xi5R1yKo=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHpAoqwigoxd9IOikydCoKA341VQWrfclf8Z-iTIbb-QG0eZCvGh_aRN-QyQwIsJQGoEopi4ey8_t7TPdPZtCRXMHDOr9XCmfTlY2KsFbnbjWNKtFPXpu1MohUiOSmw3ZLnDnRQtZ8wHJb_yg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGQa55H_MpfPlE9Egn8Y9ObJzIanR-1hhlHqSgTZRZ1Fi3DEuGgNnQroL9KgedVE6Ib50PagyS3tKs3ccmr3th1De_PFKQ3KfnDMvAzY_8PAVoLp-MR4WbIK61x96f50NKSagkxdiIlPURZ_g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF1qGNfjeGRsllQoL8GVg3vM42xRZ982_XielbO7MhmgyrZCcztaYpBcorh_xGQb4rg5HQXKAnpoTOsDWeccCjlZMheDExxg_BJNJH71arMLtM0QH9LDOvD6ndGtfyDDHhnku17vXHeOAb36g=s800-w800-h500"],
+  desc:"Consistently ranked among the most beautiful beaches in Europe — a small sheltered cove of golden sand framed by towering golden limestone cliffs eroded into arches, stacks and sea caves. The water runs from deep azure at the centre to brilliant turquoise in the shallows, particularly photogenic from the cliff walk above. A steep descent path is the only way in, keeping crowds manageable.",
+  distance:"37 km west of Faro · 6 km east of Carvoeiro",transport:"Car or taxi is most practical (no direct bus) · From Lagoa town: taxi ~€15 each way · Guided kayak tours from Carvoeiro often include Marinha",cost:"Free · Sunbed hire: cash only, ~€5–8 each",time:"Half day",
+  tip:"The cliff trail above (Percurso dos Sete Vales Suspensos) between Marinha and Carvoeiro is one of the finest coastal walks in Portugal — 6 km, mostly flat, extraordinary views throughout. Arrive before 10am or after 4pm to avoid peak crowds. Cash only on the beach.",
+  may:"Late May water temperature is around 19–20°C — refreshing but very swimmable. The cliffs are at their most golden in the afternoon light. Crowds are light compared to July–August."},
+
+  {id:5,name:"Benagil Cave",emoji:"🌊",cat:"Sea Cave · Lagoa · Central Algarve",tag:"beach",priceLabel:"Free cliff view / ~€20 kayak or boat tour",free:true,
+  lat:37.0873,lng:-8.4238,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNF0HSTc1RguFYAcOHJWlB0SPFm_mLyUz7pKCpv3Vp1rhq9jNU4JT42PL5GtdWRoj6BzZl_oS2E6_5ad_DqpjJXPwugVLrbEmvBxdAnWnFdW4JOvc083APgcWwgYE5YcZS83Wk6Pz4u1Lq6Z1YjK57vikQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEBAnI2jt-YonLeLUsIf_fwZZ8ppYlJcqtyMQR4sXpnbGKIrEgIeccrxOkXnP_MRi9OuGbTkbokPyE3pEQn5PP6TfhJRI_YWm2njsccfisrE2S1YW2bxZQiE_JNqqChzpA1NhVLD6r3rVGK=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHHlNa07fB0NJhvoqDacEH6yQLBGb0w9JaKSR8h1FAJ3fm8AA9DJRATSHohmKurFQJ58utXB5Rh6FrAoP4Tc_ukbtVjfvXEmcPWoZqlSy4h081i0dDlCFBJJRH7s6cUGoINQOJCsWVk2hIs4A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHqwkdi4SQefrq8pg3mJ5R8igL3WUitZuhN9L27wDeF-6X3zIIcS5R0f0ps9MxjeS3_YHl-GEnziuk1YVbKitI2pIr6y-4ai7omcYslJrzf_xWxVlugL7G_87T_DANmGUOyHWzBDlReFBdSIA=s800-w800-h500"],
+  desc:"The Algarve's most iconic natural wonder — a vast sea cave with a domed ceiling pierced by a natural skylight through which sunlight pours down onto a small private beach inside. The visual effect is extraordinary: electric-blue water, white sand, and shafts of light in a cathedral of rock. Accessible only by kayak, paddleboard, or small boat — swimming in is prohibited due to boat traffic.",
+  distance:"38 km west of Faro · Near Benagil village between Carvoeiro and Lagoa",transport:"Car or taxi to Benagil beach, then kayak/boat tour from there · Kayak rental: from Benagil beach (~€20) · Boat tours: also depart from Carvoeiro and Portimão (~€20–35)",cost:"Free to view from cliff above · Kayak: ~€20 · Boat tour: ~€20–35",time:"2–3 hours (including travel and tour)",
+  tip:"Morning tours (9–11am) have the best interior light and calmest sea conditions. Book ahead in May — popular operators sell out. You can see the cave skylight for free by walking to the cliff directly above it from Benagil village.",
+  may:"Late May is arguably the best time — sea conditions are good, the cave isn't heaving, and morning light through the dome is spectacular. Water temperature makes kayaking very pleasant."},
+
+  {id:6,name:"Carvoeiro Boardwalk & Village",emoji:"🛤️",cat:"Clifftop Boardwalk & Village · Lagoa · Central Algarve",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.0941,lng:-8.4685,
+  photos:["https://lh3.googleusercontent.com/places/ANXAkqGWSkMq1y2a0T_r5ays_T50faMGjtXLxl9LWMEl9vAuhrMqf6lhnd6wPgvb0xM_5zfbw7wGq7pNvL0I-yp3nVOi_r9k2j6XV18=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGug7GLZNO136UKur5dDkAeIR-CRpgaDAKtywx_ggEF7Mixl-F4xM_dh9HZatTyChWxnXS4e1HIgAU2bDnTGE3Mhb7Ace9sp9Pym2cYhsYG5knpmpe-k1aLys2oPK3sL2S21Cj5b0BLEGHl=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHcLxpySucVONzpcZfelz2KB6-9dZb9XEatBWBngAzBOMf3FDPpkSWt0m92tOyAoU6CS_w1JS8r8mgt3JL-qYu_t-d1sxGYpXLV3lrPYrgAXYzxYUaKoYwvvvzzhnkQqDVote75Zxxzcrq3cU8jXjQ24A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG9qo8u7AvGqS1TVMCr96GfoGkm63JB6s511i5THEuKAkvJSJgJaBajEW2WckWmySD6ElRfJonpVbMXD8ToK3V-4MCjSbyyJCFkYPu0LupiUHPmt6XPdZMh6AfWHyBGS6-RzyG6m1vFZGUZ=s800-w800-h500"],
+  desc:"A charming, lower-key resort village built around a small sandy cove with a cliffside boardwalk extending east along one of the most dramatic stretches of Algarve coastline. The boardwalk (Passadiços do Carvoeiro) hugs the cliff edge past sea caves and natural rock arches, with staircases leading down to hidden coves. The village itself has good-value seafood restaurants and a genuine local character.",
+  distance:"55 km west of Faro · 6 km south of Lagoa town",transport:"Car or taxi from Lagoa or Portimão (~€10–15) · Lagoa town has regular buses from Faro/Portimão",cost:"Boardwalk: Free · Village beaches: Free",time:"1.5–2 hours for the boardwalk + village",
+  tip:"Walk the boardwalk east toward Algar Seco — the rock formations at the end are among the most spectacular on the coast. The village squares have inexpensive restaurants with fresh grilled fish far more honest than the tourist strip.",
+  may:"Late May weekend mornings on the boardwalk are beautiful — warm enough to swim, uncrowded enough to feel like you've found something secret. The cliff flowers are in full bloom."},
+
+  {id:7,name:"Cape St. Vincent (Cabo de São Vicente)",emoji:"🌅",cat:"Europe's Southwestern Tip · Sagres Peninsula",tag:"daytrip",priceLabel:"Free",free:true,
+  lat:37.0233,lng:-8.9944,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFaVZLBO0yzVLU1sjUFJXGKsjAxVptLXeLzBV6WiriKIYM2iwVJYiiOg7qwLCuHGAbGacn0QngFmlxclwvljnT4MW-86KJ8pp-RJeyibHdrHBKZvdtv5ov98mVwJxfdfLWO4-89-YQat0TstQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEElW8JnWwM6YbUxmaJEkPL9_peEzKBpJyXGa99bRnY_1Yygnnfcu2Brf5X2yHNBprWDRtM86cn58pOOvnILc4WNtBl1Pe5QawZuSuJXMLU1aAnaVwhfPLRwO2Rwzgm_29K84b0hAeFx_UAKnWoevTQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGvJ_P4QIBS5cGs7BncLsc4mssUr6kIx0qTW7EPxRMyMom8RC3i636yhquw5hsGFSooC6XtuLu4lcS6_Gbjee8McmJezw40E6_PAxx9ns4QT9caHaDlO0nBOGjz0zc-uxVXysZUGETZbiaeXQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGNNpUl-3m6x_ISb8XDHuljvE4kZIACrd7C0XsvT0NZxSgOOUAPPTq134j8m6FF1KBMuu3oXLBqnu_zqT6yY2msPXwepzijKsOcZFvfKW0F7UwcFB6bUWBg_xn76DJqK43q0NcVm-o38xIxwUz1dM-o=s800-w800-h500"],
+  desc:"The far southwestern tip of continental Europe — a headland of sheer 75-metre cliffs dropping into the deep Atlantic, where the Mediterranean meets the open ocean. For medieval mariners this was literally the edge of the known world, and the sense of standing at a great edge remains. A lonely lighthouse stands over the point. The wind here is relentless and the sunsets are legendary.",
+  distance:"115 km west of Faro · 6 km from Sagres town",transport:"Car or taxi from Sagres (~€8) · From Faro by car ~1hr 20min · From Lagos: bus to Sagres, then taxi to cape",cost:"Free",time:"45–60 minutes",
+  tip:"The wind at the cape is strong year-round — bring a layer even in late May. Raptors and seabirds stage here during migration (peaking April–May) making it one of Europe's premier birdwatching spots. The nearby Sagres fortress costs €3 and has commanding views of the surrounding coast.",
+  may:"May is one of the best months for Cape St. Vincent — migration still active, tourist crowds low, and the Atlantic light is extraordinary. Sunset here in late May (around 9:10pm) is among the finest experiences in Portugal."},
+
+  {id:8,name:"Silves — Moorish Castle & Cathedral",emoji:"🏰",cat:"Historic Moorish Capital · Inland Algarve",tag:"town",priceLabel:"€2.80 castle / Free cathedral",free:true,
+  lat:37.1909,lng:-8.438,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGXoGT_u5talkiqt1LQVkwqGNLxYPjs6DlI5Wrqpk2NO64vY2R6JMV2chTICzxQD4ThdSO98UGm96HpMOZgwhEZdfCranZld6MiflAgIsmgCYFHsPQSgelOFvPG7EfZNqnggDiNlQRJT54EBrw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGqSx-puHZ-E08iBtYz_MTPYbTY2xHxNi7U0YOrgyejtgkmRBAr5BJ0b6yVhhoGqtJWJitr17B2rmJ7ISYZemVOjPuM9J_zzNuDUdKr347wpfTrtOCnuuNxeLAFHZ6lC1AUSplQfhsqu3R_FA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFSJFWyb-lStJo3NqF6IjcRKJKc3SZNmfKUqm0RXLz5fNwkAbWxE3C2JAyuG_szK6Yndu2UjRFKQioA9_YES4fIRIcf7UPB0E_s3Z66eORAInnQlOzmcVMDcH6dkq-N9e7c2VvpmCyK3Nsq1ks=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGyikSp4nCbZqmaHG20hmqQzTCsjR3Up7Ovdw03XOXGeX3kEDtMeH-BKu2P_rRa2bRdLqt_zYeLGCWjWCt6R4SFulxcZwSWMt6JHtqiWIr-LhPoSdv90xkVtV1zRP8ZvB8zMDiIVjbUGiRZ=s800-w800-h500"],
+  desc:"Silves was the Moorish capital of the Algarve (Xilb) — far more important than Faro — and its red sandstone castle is the largest and best-preserved Moorish fortification in Portugal. The walls are walkable with views over orange and lemon groves stretching to the coast. The town below is genuine, unhurried and largely untouched by tourism. The Gothic cathedral next door is also impressive and free.",
+  distance:"28 km west of Faro · 18 km north of Portimão",transport:"Train from Faro via Tunes (1hr 15min, change at Tunes) · or bus from Portimão (30 min) · Car: 30 min from Faro",cost:"Castle: €2.80 · Cathedral: Free",time:"2–3 hours",
+  tip:"Nesting storks inhabit the castle towers in spring — late May is perfect for watching them. The castle café inside has a lovely terrace. Silves hosts a major medieval festival in August but is far more authentic in May without the theatrical crowds.",
+  may:"Orange blossom season overlaps with late May around Silves — the orchards are fragrant and the groves vivid green. One of the most pleasant inland days in the Algarve."},
+
+  {id:9,name:"Ria Formosa Natural Park",emoji:"🦩",cat:"Coastal Lagoon & Nature Reserve · Faro",tag:"nature",priceLabel:"Free walking / ~€15 boat to islands",free:true,
+  lat:36.9898,lng:-7.921,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEE9hn3_QJuoC0d6WeJcu7jk6H1oddrAhvsf3i9FtEd33DwNr_GNwM7N8KNg-gEAAY8r80s8J0E0EyVYABZC4L-vYS9P53IZCmjnTFGOBE_eNkrhUAaVLmkhCgr4PWoEv6kQjlvX121WP2tLQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFU128en9HmNgioXqRA62Vfxcn-KtzQ6SjI5HJDW68v0G2L1tZ1z8-Ki7MqmavVtqIr7dwfUMPEkMeocxqpg-7Zx37QIPSKpybJImOer-6c8s_DxweysNPrlkpOxaIE4cBoO9MfRy7emP85XA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHxfaiGit3cl3QX1sLKIRuw3miMwlQG_hXWOhdfQhMf1HB2HRfAPLDLwQtayQDXKACRauslKDnHQwOAAcxdj82HQ4I3C8Q_mL37MVupYEcdz8nk606mFkySYIho2hZNUrUM9hbSuAaZcixJ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH_VOn3Z9-m1iuWGVwwz24eQYBhP0XlK3Ms_I6cyOmZHqxTviXlm3YDSYgzWyBD7RCAOQLTW0oM7-RcUrkMUS5JTsuFNN0XLbakIFaQA3aGEueT3XfJV4bGOVDH41iMY5_bGUk8_P1EIrPffg=s800-w800-h500"],
+  desc:"A 60-km lagoon system of tidal channels, salt marshes, barrier islands and fish-farming communities stretching east from Faro — one of the most important wetland habitats in Europe and home to flamingos, spoonbills, purple gallinules (the Algarve's unofficial mascot) and thousands of wading birds. The visitor centre in Faro has free walking trails through the marshes, while ferry boats cross to the barrier island beaches of Armona and Culatra.",
+  distance:"Starts at Faro harbour — 10-min walk from town centre",transport:"Walk from Faro town to the lagoon boardwalk · Ferry to Ilha da Culatra (~€5 return) or Ilha da Armona (~€4.50 return) from Faro harbour",cost:"Trails: Free · Island ferry: ~€4.50–5 return",time:"2–4 hours",
+  tip:"Take the ferry to Ilha da Culatra rather than Armona — a working fishing community with one of the most atmospheric beaches on the Algarve, without a single high-rise in sight. The flamingo colony visible from the boardwalk at Quinta do Lago (20 min drive east) is one of the most accessible in Portugal.",
+  may:"Late May is peak bird migration through the park. The shallow lagoon water is warm for wading, and the barrier island beaches are tranquil before summer ferry services ramp up."},
+
+  {id:10,name:"Praia da Rocha & Portimão",emoji:"🌊",cat:"Large Atlantic Beach & Town · West-Central Algarve",tag:"beach",priceLabel:"Free beach / Free town",free:true,
+  lat:37.1166,lng:-8.5354,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEVumPFaNDcCGN0JP88GsfY_dhh_KUEnI58g2SeSWhdAjDCsHxbFZTUpvsw4gH2lLD1u1mdw_v7KBKy37-l6SGcv1Mrkq1tW6P8uLS8X-02PiG1-jsnQ6olNmIFR_9TXOTtMTGQbwyn-Zwp=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFrUJ1lGpRIiR2P-IqfE6yAeuQlzWMzPqGut8PhB6-U_kguhfv52TYlbSi8iKvnggp1hiG0kFHXNt4GiGAsOEsD9oRo4JtzTUC9j64r5KgKcjP_wIPlgh4HDSClk5FMrWKl3j03x2lbaWAlGw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHMVvRrmOaTjts1Qq4F423im8LJthz_2Rw8bjt6IdlrGui1habSzvmm20EYk58Iy6reFdL3anYT5ovt0gwc0noC03tk0yG9Igfx02oAW5kK4JwZiGte39MpXOM5GQ-7-wGzvKSfQIF-4jYScQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEMAECY5I4XRJaIRkzhPPqgB70uTyHUtwYXzmqondrHD04j1tN9JwQ2f2qYqxJaoxS0UJ4hHdQjsp5OL-9vbKryNwtFk1YD2LliABo2n1iwQQtSrIExCeUuZE2GOGrLCzA4j_bk6Lfv9HOxNQ=s800-w800-h500"],
+  desc:"The Algarve's longest accessible beach — a 3-km stretch of warm sand flanked by ochre sandstone cliffs, with wooden walkways, sunbed rentals and a full strip of waterfront restaurants. Portimão behind it is a working port city with the best sardine grilling in the region, particularly along the riverside Largo 1.º de Dezembro. Less polished than Lagos, more authentic for food and local life.",
+  distance:"65 km west of Faro · 15 km from Silves",transport:"Bus or train from Faro to Portimão (1hr), then local bus or taxi to Praia da Rocha (5 min) · Train from Lagos to Portimão (~20 min)",cost:"Beach: Free · Sunbed hire: ~€8–12/day per bed",time:"Half day to full day",
+  tip:"The sardine restaurants along Portimão's riverside (not the beach strip) are dramatically cheaper and better — locals eat here. The Portimão Museum (housed in a former sardine canning factory) is one of the best and most underrated museums in the Algarve and costs only €3.",
+  may:"The sardine festival runs in late July, but the fish are in perfect season from late May. The beach is wide enough that late May crowds feel relaxed rather than packed."},
+
+  {id:11,name:"Loulé Saturday Market",emoji:"🛒",cat:"Traditional Covered Market · Loulé · Eastern Central",tag:"town",priceLabel:"Free entry",free:true,
+  lat:37.1387,lng:-8.022,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNH0vVfAPR_RpO_6G-ou4ITHkuuHvx7Qtf9MHMFAUMhGRKSYTPyy5i6u5GfBIAbfHoLf2w7mkRMyXM1_zn5X4f-3azak0Vtqwu4PqZRhhJ0BgAa6x1FTpJ4nWT_6x8-kxh5cNNFP2hSP1yKIEJw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGLtWCF8LSKV_vxYmKdovj-JG_BsyVeqaqEJhJZ1-4Tj-neEHRf8ARP5SAsA11g5oyy-GLNbvnzH_W7LzZdAI-ZI_9mMl4Fh9ELN11FfI3mISabEEqaQKV7vLRR-KKTobwCMkx9jb2nK3uKAX9h9mcgBA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEdYJyvt-_PWQgVx8V63A2VbeqqwJsJ9Fa_H9GbmiEKbElZc6HqfjjhL24iALrZpizrzX6mpLgE5y1TBd9p75E3j2OA7U3NTyRw8do32qNd202pDmI3ObgILwscDC2uJDY-lo5qMOMaE_Y6Ew=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHcyGn8VOjyfZSIcGbE7tMvcpJiXUMBraDuM5uOCj-Ax3KchbZDTYHW8KLnnya9sKw9XSID37yguOvAtxBFpD1r0mMDEYq8jp5pqxcCM4Nct6gCSocxLwV14VBc5BrdmZQUM855SpXYi2ME6w=s800-w800-h500"],
+  desc:"One of the most authentic weekly markets in southern Portugal — held every Saturday morning in and around a Moorish-Revival covered market hall in central Loulé. Stalls spread across the square with fresh produce, dried figs, local honey, almonds, handmade pottery, leather goods and fresh fish. The indoor market has a permanent daily food section under a beautiful arched iron structure.",
+  distance:"18 km west of Faro · 30 min by bus or taxi",transport:"Bus from Faro (regular service, 30 min) · Taxi from Faro: ~€20 · Rental car: 25 min",cost:"Free to browse · Produce and goods extra",time:"1.5–2 hours",
+  tip:"The Saturday outdoor market wraps up by 1pm — arrive by 9:30am for the best selection and atmosphere. The old town behind the market has an intact Moorish castle ruin (free entry) and several excellent lunch restaurants. Loulé is one of the few Algarve towns with a genuinely lived-in historic centre.",
+  may:"Late May Saturday mornings here are busy in the best possible way — strawberries, cherries, and the first summer vegetables arriving from local farms. One of the most pleasant market mornings in the south of Portugal."},
+
+  {id:12,name:"Serra de Monchique & Fóia",emoji:"⛰️",cat:"Mountain Village & Summit · Inland Algarve",tag:"daytrip",priceLabel:"Free",free:true,
+  lat:37.3111,lng:-8.5947,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGHl90opjPpIVZro2Yyzhjtj1ajd4ubvjMkS25HI5RMktjLYZKKPtouQsZ5gvHjSU_pEaWUOO8CPz7rstVBeW1bSiiWELPy2g1fqzascRQN1jEGz7iD2vAEH_H67PuTiSio1M529Zli-zDTosE=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGDG1V7dPgATVZbvdxP7HpKppoxXpiX-MfQwC_cQA2dqggAQKoZGagcqv4wCF6EQivxEPT1gD0dHekE0YXiXWCQMf5KrtZuvtBeqVAgzIh-WIUVx_IhbsqzvJ-Vh6FCmzuq65XmFZpRIHODbT8=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG0pZ9xg6kbECZgX7GaCkE7mz3IvqR5bhx2ZDp_GDQo1fCZeNvT55a_WsOwpnu6WHKkJIbg4zIdVKKWqsVnYRiDSPp4gIdL-Gi9rsh1eeRSXEqnHTxi3ok_Mf3_qW9GaKOAfbTJkbCMyMX6yA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG5HA8kElvZ_Suu_MqSt4O0unbr6jF46Ox-5PvWg8vYdwVGzchO7eLquWMI2dyYtDUIuVYH7TgwYkAgxCJjIqMODhNRMS7zQRuo_hDotJukrkmpZfUyvVI_U2sxNVc2_TlWppyUbBm0oKoKkOc=s800-w800-h500"],
+  desc:"A complete change from the coast — the Serra de Monchique is a forested mountain range rising to 902m at Fóia, the highest point in the Algarve, covered in cork oak, eucalyptus, and medronho (arbutus) trees from which the region's firewater liqueur is made. The village of Monchique is an authentic whitewashed hill town with excellent lunch restaurants and thermal spring waters, while Fóia offers a 360° panorama taking in both the Atlantic and the mountains of the Alentejo.",
+  distance:"50 km north of Portimão / 75 km from Faro",transport:"Car is most practical (no good bus to Fóia summit) · Bus from Portimão to Monchique village (40 min, ~€3.50) · Taxi from Portimão to Fóia summit: ~€25 return",cost:"Free",time:"Half day",
+  tip:"The drive up to Fóia is scenic but the road is narrow. The village of Monchique has an excellent medronho distillery that welcomes visitors — the firewater (aguardente de medronho) is unique to this region and worth tasting. Descend via the spa village of Caldas de Monchique.",
+  may:"Late May is peak wildflower season on the serra — wild lavender, cistus and rock roses cover the hillsides. The coast temperature may be 25°C but Fóia is often 6–8°C cooler — bring a layer."},
+
+  {id:13,name:"Tavira",emoji:"🌉",cat:"Charming Eastern Town & Roman Bridge · Eastern Algarve",tag:"town",priceLabel:"Free / ~€2 castle gardens",free:true,
+  lat:37.1254,lng:-7.6513,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHPuFn8wm38Kr3H3tIfEPJV9pHcjdSXHqiTDqksJt9HV2SVgawyJcsi1zCs4HTU5Jjwggwg-lL8SelTsh3NWxQufue-892ggp7EygsM4siH6tn7TY_tv_HzCRYPsG0X8tUVbxNdx75GPEyAwg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFp00NmeJbKS144KO4DYUrwlouwfuVoVC5RDSpIHhXNm_sUqoClAvWvmGJCGre96SdALOxIkDHFRfJRlcmYySimb8fOztsZxLvuq-Ey9yNv9LY8amDS4rTuP-4m_afjftA9WA2l-GDHQrg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFK1OKg4gGkLqwFUZgMeXcbNWmyXmQOIvjSzp1c--YrqGG6BXyw572yUiE60dkADWSDfBC-DtQEXH9vIM7oZAQJtGA7VyB_rCMueeJcU5RSl_eg4Ic9M0brBE5fDKGut8Gduc0rnmWmrdPkLg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE7kqGPmuQxZ73ibDF0s3G1efVfKP5j9l5JwxrQn-vkUiIo-sg-P02YGasBCs_zo5OiNj-AoZ5EParcGIVhrMVNT7B4n41jiSjCNdjwnR6B3FN7t3HedVyLZuifSoXXWBra6u-OAeI=s800-w800-h500"],
+  desc:"The most beautiful town in the eastern Algarve and one of the most underrated in all of Portugal — a Moorish-flavoured whitewashed town straddling the Rio Gilão, crossed by a handsome Roman-era bridge, with 37 churches for a town of 26,000 people. The rooftops are a distinctive tiled saddle design unique to Tavira. Far less touristy than Lagos or Albufeira and considerably more charming.",
+  distance:"30 km east of Faro · 40 min by train or bus",transport:"Train from Faro (direct, hourly, €3.30, ~35 min) · Bus from Faro (~45 min)",cost:"Town: Free · Castle gardens: ~€2",time:"Half day to full day",
+  tip:"The castle gardens (small entry fee) have the best rooftop view of the town's distinctive tiled chimneys. The barrier island Ilha de Tavira (accessible by ferry from Quatro Águas, ~€2 return) has 11 km of wild Atlantic beach — one of the finest in the eastern Algarve.",
+  may:"Late May Tavira is warm (25°C), beautiful and almost entirely free of large tourist groups. The Roman bridge lit at dusk with the medieval town behind it is one of the most photogenic scenes on the Algarve."},
+
+  {id:14,name:"Meia Praia",emoji:"🏖️",cat:"4 km Atlantic Beach · Lagos · Western Algarve",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.1186,lng:-8.6412,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGpfKbn0X0dQGkalFgVqzbSOl4P-A03styg4LQpUWlPkL3-wryQdsfwABUrR9nRWJPVMlol6OCYOt4zSYtmQqa6G4NiinkFdGbDwrm0vSdjFaXdQxrUl9bZDf-YOz2A_q1S3_ghV77zN5jUZQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGXrhHQxwHWW7VLkMNGo8Cl_-M_3XWt6giRjNiXUcbTp-e3uiT49Ub86LASen9mDT1zYa3yh7tNjo4NdKttAsBQflEzZ8ypjfSsUGtzDpGr0XztKfreRUYpuVn0cmQ1noMogLBv5RcwjCDWzDQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH6d1qp-BdJLYmbulx0V7Y8wxExgWmybqvlsWi9I0iklZHpj-_IaVUvrVsnLy4i8wwq1uhbaIT34XZ5JZF9NOjLGEfNpuvE8gSpoH4l0V1K3OqGtmu12I62LaQ-6h23MIbm8ASGhMsBGv6l6Q=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFiKNwpdpJFzpNzx_WJxmNBM1rf4480mFuV9veiF5cRDZ_lWplW4sGiiue9fY2WYVTRRuiVLmQxQRZXy95OuAJbDnJjgh9e65QfW8Mvmo_HqJiYBIRQ-KLFrxB9Ipa4DZsgz1dXl2M-KRYW6Q=s800-w800-h500"],
+  desc:"A vast 4-km sweep of Atlantic sand immediately east of Lagos, easily walkable from the town via the marina area. Unlike Lagos's dramatic cliff beaches, Meia Praia is open and flat — better for long walks, gentle swimming, and watching the sunset over the Lagos headland from a distance. The water tends to be slightly warmer and calmer than the exposed western beaches.",
+  distance:"2 km east of Lagos marina · 1 km walk from Lagos town via river crossing",transport:"Walk from Lagos marina (20 min, crossing by small boat Vai-Vem ferry ~€1) · Taxi from Lagos: ~€5 · Bus from Lagos has a stop near the beach",cost:"Free",time:"Half day",
+  tip:"The Vai-Vem river crossing (a tiny foot passenger ferry, ~€1) is the quickest route from central Lagos — walk across the bridge to the ferry point at the marina. Beach bar sunbeds are available for hire at reasonable prices compared to the cliff beaches.",
+  may:"Meia Praia sees a strong late-afternoon onshore breeze in May which makes conditions perfect for windsurfers and kitesurfers (several schools operate here) and keeps the beach pleasantly cool for walking."},
+
+  {id:15,name:"Cacela Velha",emoji:"🏘️",cat:"Tiny Hilltop Village · Eastern Algarve",tag:"daytrip",priceLabel:"Free",free:true,
+  lat:37.1569,lng:-7.5462,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNFlgw2zQHDBbthzOE4kQFzDlODcXZil6R2XtGtzCOzJ11tZmLDjNTbL5skLtN61bGvg2c8KKtNtcrVIJar8zAHmYrP5B8uwLrtVVnFXPE_SagMU_YP0w8Kl663Qmn0Ki_OCiHBfn8RrckHLN3A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGzwQEAiowQiR-wdyBctyd6JcZvBSR-FBDq4hsWV0GuQv307CcNbclH1OubcXCmw65Z05v2WiDoAhsxFbj9zSthwwvc3LvicPUk2fkejzEwdkMgHIfp7yEw5N-f2NZMZh2Um7DaGB-UqYgqMw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHSDgUXL80tjee051h1wO2plaaNldvnSvTh2QTVRFqxLfIsHTUwKiqZlQIgStER8t9ZRe6V7QGrzYA5bTxPBtnt-oh-pX-SlhBN4zVWARH_U6MFxTUxt3KMGfeIEmoaW5RDvpzhtSWg43Fwev4=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGgr3ptJKZ8j69LOACDPg5iLgxCmi-SuDCEmabtda508X-WqQnzwFb3X-_JuWk9d5tg4UKyYvZXGf1oZUIdsLnCSAASXm0NW8wQ5t_CPk9Nz-kYRg0x89g170i9OzdtF20-fjlPLXEYxn0g=s800-w800-h500"],
+  desc:"A tiny whitewashed hamlet perched on a clifftop above the eastern Ria Formosa lagoon — one of the most perfectly preserved villages in the Algarve and almost entirely bypassed by mainstream tourism. A small Moorish church, a ruined fortification, a handful of houses, and views across an oyster lagoon to a barrier island beach. It takes 20 minutes to see everything and it is genuinely one of the most beautiful spots on the coast.",
+  distance:"50 km east of Faro · 10 km east of Tavira",transport:"Car is most practical (no reliable bus) · Taxi from Tavira: ~€20 return · From Faro by car: 40 min",cost:"Free",time:"45–60 minutes",
+  tip:"A boat from the hamlet below descends to the barrier island beach (ask locals — it's informal, small fee). The village has one excellent restaurant (Casa Velha) worth booking for lunch — the setting overlooking the lagoon is extraordinary. Go first thing in the morning for the best light and near-solitude.",
+  may:"Late May Cacela Velha is utterly quiet — a handful of visitors at most. The lagoon water below is a clear turquoise and the oyster beds are fully active. One of the greatest hidden gems on the southern Portuguese coast."},
+
+  {id:16,name:"Vilamoura Marina & Old Roman Site",emoji:"⛵",cat:"Upscale Marina & Roman Ruins · Central Algarve",tag:"town",priceLabel:"Free / €3 Roman ruins",free:true,
+  lat:37.0775,lng:-8.122,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHXEx708sm_G0YfiHpL5AwZjM6AmQMptpwerPD-iBbBKrumUgLSbGdVfpUCEqOvZ5E1xnx-tsaJdxv3qNt5bydtOg6O13GSmNiy1pf8iqafIpNVRxNNJFZgUvP90OGD7Lj4WC17J8NKczhlmA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHg23-VH1L2ZdRjWQkduoEWso4vvMbCcoTZi8EEpTIh8yilzGKa0AMDV_Y7SUz1yyyJtbcJFHi8b6XD4IkIc8xbYAI95f3vMmOsT6Dt72VPB_ugQsVcJ2cFnlBNT6Pa4NIVP4FWICVBnOoi=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGhqpPztsBUrsoA0NVZzH0s5Xbx302qkyJjOTJLuranoWFziC8Hw_242lOtIjME5fEK6yrDN4RIyGU49s-8J501DgpxjGlNa7Mmhvhn9mZYrmuC3EuoDfIXjTJZGFQfoGPR20dOYegTXu4beA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEpO15N45QpS0T8g9J98WeKeUOZw-l02rup__0HO4fNV5xUyRwilk5TJTn3oQGSRkK8BmxNoHftA2Kgy-QRpD28J_0sJfu8oPG8jffTkndS_cIsYWcI9v8a-L6LSyhZtkDSRyufqnxk_SFRVT8=s800-w800-h500"],
+  desc:"Europe's largest and most upscale private marina — a crescent of restaurants, bars, boutiques and super-yachts arranged around a vast protected harbour adjacent to a long sandy beach. It's more glamorous than characterful, but the evening promenade here is the best on the central Algarve for people-watching. Just steps away, the Cerro da Vila museum site (€3) preserves a Roman villa and fish-salting complex with exceptionally well-presented mosaics and ruins.",
+  distance:"25 km west of Faro · 5 km from Quarteira",transport:"Bus from Faro or Quarteira (regular service) · Taxi from Faro: ~€25 · Car: 25 min from Faro",cost:"Marina walk: Free · Cerro da Vila Roman ruins: €3",time:"1.5–2 hours",
+  tip:"The Roman ruins (Cerro da Vila) directly beside the marina are one of the most accessible and least-visited archaeological sites in the Algarve — a 1st–4th century villa with intact mosaics, a fish sauce production facility, and a small museum. Worth far more attention than they typically receive.",
+  may:"The marina restaurants have outdoor terraces operating from May onwards. The late-May evenings here are warm and the promenade crowd is cosmopolitan and lively without the peak-season crush."},
+
+  {id:17,name:"Praia de Odeceixe",emoji:"🌊",cat:"Remote Atlantic Beach · Alentejo/Algarve Border",tag:"daytrip",priceLabel:"Free",free:true,
+  lat:37.4421,lng:-8.7974,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHBj8y2J2yrAnNd6Qz_oORYd9j33Ce-d8Jri-TWgpFK7BOXFiebV4HfVxnBQHRmYkvAWTKJ0XlSN3m9LGyQ-Zf1fnRtBe99jhxzqpDOKAvV7bxRysC84dvMEGrwqlTKVMJhsmYK0FnjYE2FClg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEivIfn16ZA9D8z86NPuNEeg6p_-r8E2rqRgnOgp8w7De7vbfYxRWAeuWPDGb4qJh7A9RlhthV_h6Awx6zFglLhAOVfjkg2YNfRbUgWYmwvdEWlDrSYDibB8sC3aiBVCJbFrSA7CH2Ubr5skZA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGHIVBiGraQkXVflSsjFph7XE1FWdT5vL1lq7pJy90XacKpdN8pYvlsmhFwv8gVdZ2cTrLsYR1mroj9Rb5tFJBGUUArYdONEOIniDw_2OOasXv0bbK8ei6tbXHErBTBZOhxdyvhFPm91HxUhg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNG_IX7OC5wbe-t3B5WdA0U3PZkxPl7GiTGxChC-9EaWgGy36KxAh2zry7w62MZArItkzO-eA-Vy-IDxl_boGsV6DeTLdVIf3ZAUshd5OJz83eL2Yb7fL67CN6zvFQCU50eUwo_0WDD4H4FsbQ=s800-w800-h500"],
+  desc:"A deeply beautiful beach at the border of the Algarve and Alentejo where a river meets the Atlantic in a wide bay of golden sand flanked by dramatic cliffs. The village of Odeceixe sits just above on the hillside — small, unhurried, and genuinely local. Part of the Costa Vicentina Natural Park, meaning no development will ever intrude on this landscape. On the wilder, more exposed Vicentine coast, this is one of the finest beaches in Portugal.",
+  distance:"100 km north of Lagos · 160 km from Faro",transport:"Bus from Lagos to Odeceixe (Rede Expressos, ~1hr 20min) then 3 km walk to beach or taxi · Car: 1hr 20min from Lagos",cost:"Free",time:"Full day (worth the journey)",
+  tip:"Low tide reveals vast flat rock formations and rock pools on the north side of the beach. The river mouth on the south creates a naturally sheltered bathing area warmer than the open Atlantic. The walk from Odeceixe village down to the beach (3 km) passes through unspoilt landscape worth doing at least one way.",
+  may:"Late May is the perfect time — the Costa Vicentina is at its most lush and floral, the beach is uncrowded, and the surf is consistent for bodyboarders. The exposed position means wind can be strong — check conditions. One of the Algarve's most transportive day trips."},,
+
+  {id:18,name:"Sagres Fortress (Fortaleza de Sagres)",emoji:"🏰",cat:"Historic Fortification · Sagres Peninsula",tag:"town",priceLabel:"€3 adults",free:false,
+  lat:37.0007,lng:-8.9482,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHAlZVOD-gnsaEYWWYnFSZaUfKDLYpwVr0lmcvRuTjTjGRVQT9R8PY0wQsyJIrXzw5o3iPw8lTH_l__ef_2jyLK5VK8ZVrfKUBFC0WXRuk0u0LW8NzT8j-OyQevvM3ece6RGKT2sqvYKWeyYg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNETrUwz1MKOUUGnB5N229w-XQPkXueV3tktxg_DO1_MWeNRoXb6_KREiQgNX_ribYUM7WlhgfzA1oeUZ3KhydgtbrzxalEEBbLSXDWXoY9TauaGFEvNUqZIUleoKPqD8Jh_rIlDvOA1OZBxLQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGsV2sprkOZ4VxRpvG2HgM2MGjK5KARCkjvVbI1rjRK2n3whRNrw5I28DFMRgDiZLJAZKbndmbdHpsvPS6r_PKFB9flw8AuOASSJmkLC2jXOlrKhQJCIPBlqPS-L2QANOrMbxOSI3KCg-UXTA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEIqVTRAatCSC2yrHhamAu7-MD4CIjximp4owm1yQCcccNqxPDBR5S3xAzc8fV6v_schtebvSYh47gncx3rBxESOdm0HQ5sA5MMCQppHRcTulJfN_vraRIMLwQd9ekZIRFZsvzanVIS0X-Dmg=s800-w800-h500"],
+  desc:"Henry the Navigator's legendary base for Portugal's 15th-century voyages of discovery. The fortress occupies an enormous flat promontory above the Atlantic, with a vast 43-metre wind compass rose etched into the earth and sweeping cliff views on three sides.",
+  distance:"113 km west of Faro · 6 km from Sagres village",transport:"Car or bus from Lagos to Sagres (Eva/Rede Expressos, ~1hr 20min, ~€5.50) · Fortress is a 10-min walk from the village",cost:"€3 adults · Lighthouse exterior: Free",time:"1–1.5 hours",
+  tip:"Combine with Cape St. Vincent 6 km west in a single half-day — the logical pair of the Sagres peninsula. Scale the fortress walls for the best views of the sheer western cliffs and the lighthouse headland.",may:"Late May in Sagres is warm but never stifling — the Atlantic breeze keeps temperatures comfortable. Migrating raptors still pass through the peninsula and the evening light on the fortress walls is genuinely memorable."},
+
+  {id:19,name:"Praia dos Estudantes",emoji:"🏝️",cat:"Cliff Tunnel Cove Beach · Lagos Town",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.0965,lng:-8.6676,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEwJp85RRKj4FA_ImEv3Nx0gaA3VkxkgM6NARppiVWRtHGTA72mr7negx6BAftYZgieuyQrqN5HdGGcfMCa-etAhN__b9cKT9XJov-dtn-m3_94NU35CzsdonmqXD-ABtdTTY1BBWGBhpFc_so=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEwFrWwNqbZRu9QttrfrwnZQ4Hu3D5DKTNrQ51MYjEBbu1m79AQZf1gt3HLQXAnKPD1nIg_U-fNWRlO5dJcNZNoovoJwVOiR7AA1Q83gZ4hfOi-87svYRZ0kHKgiigbImsMujoL15_N5EeRCw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHhGxSo48_55k4q6BuRLCvxk6UVEYoAgbmLvdCjBZpFvHuljmfVCaK3pTdpAAcA6QnxYcJF7e7zNEkIbsFCbOPeN0sPGkSaJpUi7QtsSFoRNUme8x14MLuGX1b87iE2BiMSrDQXuMN3byegM4g=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGQyluNKhuVT_1R4LalmTvgSirIYHNwW1MS_lzMFIs01-JL-rdbVA5Ic1LRuXM_o4ZjLKXfAxRQxs6oymwG5PQjRBmLgcfKLYAlg1FRaSjrXXIk4iNu9m7wVR9MmzztC7nA4maWER63e2hn=s800-w800-h500"],
+  desc:"A sheltered cove directly below the Lagos town walls, accessed through a narrow tunnel carved into the golden sandstone cliff. You emerge from a dark rocky passage into an enclosed bay with the ruined town walls rising overhead — one of the most atmospheric beach approaches in the Algarve.",
+  distance:"5-min walk south from Lagos old town centre",transport:"Walk south from Lagos old town toward the waterfront, follow signs to the cliff beach tunnels",cost:"Free",time:"1–2 hours",
+  tip:"The tunnel can be slippery when wet and gets tight at its narrowest — wear proper shoes. At high tide the beach shrinks considerably; low to mid-tide is ideal. The cliff path back toward Praia de Dona Ana rewards with fine views.",may:"Late May the tunnel beaches are warm and uncrowded. The low-angle afternoon sun catches the amber cliff walls and the water runs electric turquoise in the cove."},
+
+  {id:20,name:"Praia do Camilo",emoji:"🪨",cat:"Dramatic Cliff Cove · Lagos",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.0874,lng:-8.6685,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGcfHR_Bg2tyLO954YriFz5uyEvShv7T0-kyKX_adIEm6AdTNcDMJs5OnGxqHrFGGj0FYHltHxkXjBDfJe8sTcgOu2w8piYh9UirEuXpv36yr8zsohFFilyExyBA8ZuinO91lyoyE6LK8vtdQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGB1D3FURrdWV6jQku37mfN1_GGwXm_bhLIL-dbraT7yW282eq2ohhewkPBGcXD-u_RI8uMdwBDAbHZPJGPWF3B20oHqfdy41NSbwQLwID8kbVm4D6GtZJhQaOoGB7vyaGvHpSvPXNlULCmn-U=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHWxpEUJBTC7ipWx-Pa4VKZFL2n8rIhFHsvVXbovoPGff6LKAO55wL2UnJTS0W5HAy5f04TooIMYfUHkyWen514-I9QNuOncrdT40V21H_MYSEcCucVqdjipk01mAX2jZucq_aeW7hYtpDRWQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFXxY0UekdtcgZD5Jnl7kOiAeiR_DgaSA96Nu9TA9oRy0dfjiEaXynzes-e46yuBbgCqby7j-A7-gKZwRjLhSmMi7xbhKqG0twb1X2NRuVd6gSIyMtnvi2vf4kcVquPPA8VY5Vm8bcqBVx8=s800-w800-h500"],
+  desc:"A strikingly beautiful small beach reached by a long wooden staircase descending through sandstone cliffs immediately east of Ponta da Piedade. The enclosed cove has exceptionally clear water with cliff walls rising in layered golden and ochre bands — one of the most photogenic beaches on the western Algarve.",
+  distance:"2.5 km south of Lagos town centre · 35-min walk or 8-min taxi",transport:"Walk south from Lagos along the cliff path from Ponta da Piedade · Taxi from Lagos: ~€7 · Car park at the top of the stairs",cost:"Free · Car park: ~€1–2/hr",time:"2–3 hours",
+  tip:"The adjacent rock arch at the northern end is accessible at low tide — one of the most photographed spots in the Algarve. Arrive before 10am or after 5pm to have the beach to yourself in late May.",may:"Late May light hits the amber cliffs from the west in the afternoon, making Praia do Camilo exceptional for photography in the golden hour. Water clarity is outstanding before summer boat traffic increases."},
+
+  {id:21,name:"7 Hanging Valleys Trail",emoji:"🥾",cat:"Clifftop Coastal Walk · Carvoeiro to Marinha",tag:"nature",priceLabel:"Free",free:true,
+  lat:37.0906,lng:-8.4142,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEEGSw6T0htyxWnuknaxjrlx4UCjfxJhtvaGI9V8jIkH257g0zCqOx4OY898c5T9Rc-5emhqYeB3wWunqwO6S-DcYsGM4SP6WWTKRDEVzGZFaDHR0dKhNFQLu5pLizlI3yb69BFnFNSV4b1Eg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEV1FMU5PW82E_sltJexl0MCdL2CMI473f8OlsfFZNKampwPu_LB6MFVfVOzMyv9OOoTqU8nLELisRrKRzTsD1CrzivGpAjXZsq6LsyzD7qB_ZdES4-gNCTaGQJphJeVDP7lTFPKbT7XQxyLhc=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE4oTVTBRv2mEVjVZ9Nk22OxCGnaVqofmSyoeDt1ek_0PTdHZjsLYl0usOkushB2ghoP0LV-1OgvQgwVXN295YF3M8R4fxv9ardUrp60nm94dHUIW6toI7x7red_4EgCalJmqOpjk3KeQkM=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHEaaRHEtBbzNX7N25TGGL_PXR3x2SGIBRcYcvVQli-M8S7XAG7n1q390HeDglNyD2VbOq2YrPZrVDJvGS9KbeENAXqCkUdk3B7b_Nt9QVBuCyu946oFGoLZzFeX_MYdzozbafpQ68tCcm-viU=s800-w800-h500"],
+  desc:"Widely regarded as one of the finest coastal walks in Portugal — a 6km clifftop trail between Praia da Marinha and Carvoeiro crossing seven dramatic limestone valleys carved by the sea. The path follows the cliff edge throughout with views into sea caves, arches, turquoise coves and rock stacks at every turn.",
+  distance:"Starting point ~37 km west of Faro · Between Praia da Marinha and Carvoeiro",transport:"Car to either end (Praia da Marinha or Carvoeiro) and taxi back · Or walk both ways (12 km total) · Taxi from Lagoa: ~€15 each way",cost:"Free",time:"2–3 hours one-way · 4–5 hours return",
+  tip:"Walk west to east (Carvoeiro to Marinha) to have the sun behind you in the morning. Terrain is mostly flat but with uneven sections near the cliff edge — wear proper footwear. Start before 9am for the best light and fewest fellow walkers.",may:"Late May is peak season for this trail — cliff wildflowers in full bloom, light crowds, cool morning temperatures. One of the most rewarding experiences in the Algarve, combining dramatic geology with solitude and scenery difficult to find elsewhere in Europe."},
+
+  {id:22,name:"Praia de Albandeira",emoji:"🏝️",cat:"Hidden Cove Beach · Lagoa · Central Algarve",tag:"beach",priceLabel:"Free / €1–2 car park",free:true,
+  lat:37.0902,lng:-8.4008,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNEzNLRSwvhYjxE0JGbreq6IKyp9sbUqke-4SDaT0TeqSiosqCbN0nZEtk-72P0bnX3RJPXMpF1LA3DGzR1ghbgJxu3oRjjJ1ugZuLwTOO56kruLIpxOyNwxfooEb7Nxqz5ovXYCksdy83hHcjqMfLYw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFL0rkLxZNPJaVq6GhWsvL1HNj_cYyRdePfCwSHPX24zVi55SZdKAg2M31CbrMLIyR3qf1aKJ07sOIHHpNTbekEwkXesZ7q5XpTzOcei6S5GPfHyZg9_NRiOO6YoGuHDuziIlykmJaiMYwEPBKryqu-4w=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGxfZv2eRyNks-KiNLg3vhKmqkFCzCe-VBT01QRRW6NIth9aAN9Fsk07S7Rwu9Xtg9fb_6YjG2BpNbyF4Xg1RvBeCQ9mSOUTKMsf8cyw4V3feCs64RPlGW-NmJb_w9hIC851SDbWVuugTacz2k=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGpXmFeWK9kgzvG0AbsXa3dWtgeyqq42H8Z3kmA6N7x1MSWSGpP133ZACTkTnt1AdoKoPctIkpCtkM1aSdcnaj7Hzx6myook5Z8GUcE364gv8X4ghKUuG358YUH7-ALpzo7dEYkuwPhBsmZgA=s800-w800-h500"],
+  desc:"A secretive, sheltered cove of fine golden sand tucked between vertical limestone cliffs midway between Carvoeiro and Praia da Marinha. A natural rock arch frames the sea view and the cliff walls create almost complete enclosure — one of the most beautiful small beaches on the central Algarve coast.",
+  distance:"~38 km west of Faro · Between Carvoeiro and Praia da Marinha",transport:"Car to the small car park on the coastal road, then short path and staircase to the beach",cost:"Free · Car park: ~€1–2/hr",time:"1.5–2 hours",
+  tip:"The natural rock arch is most photogenic in early afternoon when sun is overhead and the water glows turquoise inside. The beach also makes an excellent stop along the 7 Hanging Valleys Trail if you descend from the cliff path above.",may:"Late May sees at most a handful of visitors on weekday mornings — one of the most unspoilt beaches on the central Algarve. The cliff wildflowers are spectacular in bloom above."},
+
+  {id:23,name:"Boat Tours — Benagil & Central Coast",emoji:"⛵",cat:"Guided Sea Caves Tour · Central Algarve",tag:"beach",priceLabel:"€20–35 per person",free:false,
+  lat:37.0876,lng:-8.4265,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNF0HSTc1RguFYAcOHJWlB0SPFm_mLyUz7pKCpv3Vp1rhq9jNU4JT42PL5GtdWRoj6BzZl_oS2E6_5ad_DqpjJXPwugVLrbEmvBxdAnWnFdW4JOvc083APgcWwgYE5YcZS83Wk6Pz4u1Lq6Z1YjK57vikQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNEBAnI2jt-YonLeLUsIf_fwZZ8ppYlJcqtyMQR4sXpnbGKIrEgIeccrxOkXnP_MRi9OuGbTkbokPyE3pEQn5PP6TfhJRI_YWm2njsccfisrE2S1YW2bxZQiE_JNqqChzpA1NhVLD6r3rVGK=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHHlNa07fB0NJhvoqDacEH6yQLBGb0w9JaKSR8h1FAJ3fm8AA9DJRATSHohmKurFQJ58utXB5Rh6FrAoP4Tc_ukbtVjfvXEmcPWoZqlSy4h081i0dDlCFBJJRH7s6cUGoINQOJCsWVk2hIs4A=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHqwkdi4SQefrq8pg3mJ5R8igL3WUitZuhN9L27wDeF-6X3zIIcS5R0f0ps9MxjeS3_YHl-GEnziuk1YVbKitI2pIr6y-4ai7omcYslJrzf_xWxVlugL7G_87T_DANmGUOyHWzBRlReFBdSIA=s800-w800-h500"],
+  desc:"The central Algarve coastline between Carvoeiro and Armação de Pêra contains the highest concentration of sea caves, grottoes, arches and stacks on the Portuguese coast — best explored by small guided boat. Routes access Benagil Cave, Algar Seco formations, hidden grottos, and viewpoints unreachable from land.",
+  distance:"Departures from Benagil beach, Carvoeiro pier, or Portimão marina",transport:"Walk-up from Benagil beach (short queues early morning) · Book ahead via Algarve Boat Trips, Sea Xplorer, or Fun Kayak Carvoeiro",cost:"~€20–35 per person (30 min to 2 hrs depending on route)",time:"1.5–3 hours",
+  tip:"Book the 2-hour tours covering the full coastline from Carvoeiro to Benagil — far more value than 30-minute Benagil-only runs. Morning departures (9–11am) offer the best interior light in the caves and calmest sea conditions.",may:"Late May is arguably the best time for boat tours — sea conditions are reliably calm, caves are not overcrowded, and morning light through the Benagil dome is exceptional. Book 24–48 hrs ahead as morning slots fill from late May onwards."},
+
+  {id:24,name:"Praia da Carvalho",emoji:"🪨",cat:"Cave-Entry Beach · Lagoa · Central Algarve",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.0867,lng:-8.4319,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNG6NhKPiEObwpyu1OWtjuMVdqvt65shy1epj7k_UlfIOJAj9zx4ER_v49yHRbuCVyvQZt7WL_girhfgERCAzd3elmHpe4vuwTEovdKzrpJIjAzromMuQzVHYtYaJly8bJ-LXYsF1xJdMlFLKpzMDsMkEQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF0FFXWRbSc0eO-hK3omtEPauy6HmwrAg0lfpm6z_Bwm9CJC__7L0RKTVlnRga_pM8kDPDfT9kdX634YwnTyL-F0mqWq7v3G5irlArztCLo1PljqBNmPYrFbOhg_oTmpGTsmP2JgIjuuiMh=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHNhv1pJMDII0KRSQzxxkFbl8615om5w4FKnvb8ep3eElH3N_Fe9jYrF7ehZEcmhtildMeY0PuVnbqRp4JUKu2of-ut5vgT51kIUBIflJG7ohim3i1ceF-HLTHsQivOC-SJRVNqO7MGL2_yWA=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNH83fn9NfUOomf5WW53RHsV3-4gsR99K7Nk4hjdoJqmQ6qJzTynsrz9qcmVGjr5ty_ADcBCSzoIGTP2GSlG9XAUWIZzjOGkaixQ8L46CDIICn3VCQDAoqkU7-iU4iUf550umhbvCe6IV4UYEDs=s800-w800-h500"],
+  desc:"One of the Algarve's most unusual beaches — accessed through a narrow passage cut through the base of a sandstone cliff, emerging into a completely enclosed cove known mainly to coastal walkers. The water inside is a brilliant clear green in afternoon light. Reached only on foot via the cliff path from Benagil or Carvoeiro.",
+  distance:"~39 km west of Faro · 1.5 km east of Benagil beach",transport:"Walk along the cliff path from Benagil beach (~25 min) or from Carvoeiro via the 7 Hanging Valleys Trail · No direct road access",cost:"Free",time:"1.5–2 hours",
+  tip:"The rock tunnel entrance is only about 1.5m high — check tide times before making the walk as at high tide the tunnel floods. The cliff walk from Benagil is well-marked and passes several sea cave overlooks along the way.",may:"Late May ideal — cliff wildflowers line the path, the beach is near-empty, and the water clarity inside the cove is at its peak before summer tourist traffic increases."},
+
+  {id:25,name:"Albufeira Old Town & Beaches",emoji:"🏖️",cat:"Resort Town & Beach Hub · Central Algarve",tag:"town",priceLabel:"Free town / Free beaches",free:true,
+  lat:37.0903,lng:-8.2544,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGgQlGY0F8QumEJU3SchQOhSiZrthKS6drGyTm4cnbWPffv16t_RFVoicGxK24CWo8UinWg_2agHI_EfpzgN_F2BJbpd7m2RPHRXjgCMI9jPcNUD41TwFnIs6MmCB5hIJjngi0qGdNMbG3UDg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHM81NbUNOrWR7b5bL-sjeqU6Dw0ZN1MiAWbJbmhFNkGMZD7AQKdieW9tz83s0z2iqRhSOAyw-ig2HCLhWoq3eTxuQYeCGvC7ee-DwUQITAoarKXI1JQcygfcLdiz2bVlUGBhA7Qvu-YtLjwQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHoFxQMjkvUHOoI1CkCQW_qea1ZsF-haKIVAcO4pt4YsOoZ7wSXUADVezOTvCuOgX6fizDYrTs9G0Hh3vUjmk6azau2I8f874Q7V4nfDm6MChoebEDd-5GYLKV_sza2BtTMF8X0aJ6S8sjx2Q=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFmOmK-8erZgOau-cSIcEHwl468TsANYm_CQm0yrLK7vdWTzOM1geFFr6_mVh3Bg4DpRomL1aES4qir-Ao2zoxhVz33yAVxuCfPd5uYYkW_1DY2By2EOLfDIynKYRg8_1Tv-tsRT9EgiMTNqg=s800-w800-h500"],
+  desc:"The Algarve's best-known resort town — a former fishing village with a lively whitewashed old town quarter and excellent cliff-backed beaches directly below. While more commercialised than Lagos or Carvoeiro, the original fishing quarter retains genuine charm and the beaches directly below the old town are outstanding.",
+  distance:"40 km west of Faro",transport:"Bus from Faro (EVA/Renex, ~45 min, ~€4.50) · Car from Faro: 35 min · Train to Albufeira-Ferreiras station (4 km from town), then local bus or taxi",cost:"Town: Free · Beaches: Free",time:"Half day to full day",
+  tip:"Praia dos Pescadores directly below the old town is accessible via lift or stairs from the clifftop. The original fishing quarter around Largo Engenheiro Duarte Pacheco is considerably more pleasant than the main tourist strip. Restaurant prices in the old town are 30–40% lower than the marina strip.",may:"Late May Albufeira is fully open for the season but not yet at peak capacity. The evenings are lively without the midsummer crush. A practical base for day trips to the quieter central Algarve beaches."},
+
+  {id:26,name:"Praia dos Arrifes",emoji:"🪨",cat:"Rock Formation Beach · Albufeira",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.0761,lng:-8.2773,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNHIp7ZCP2-LUfXYfzCOqrbcdNKZ9eK3MRcCRYp72OXOL1YoQboSkCffSiB2wqpJnQt4OHlvRliM9sDpnyvHSF4Ve3GHt_S6PwniOq_4Yfhq2TbDffAU-RF-KK1wrtC-IsYjxZ_G4TFTOGTuCg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHNJnbaejgIz6FIi9amVfxv8U6ikBzWOvictwWy-u7O42tKhv296ESMftt2FNrL7hx8PHmAPPY-KvHC8Pn5U1b42UrAkXjHgxc2IhV8xeugjztTyZ-WtYlaK7tm8AWbs2cBPsYtoLgve2rMcw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNETwniZ_va5GpVp_VwyL1cprBUpqhLFhmsJnyhKkYBtona1V70iIuEoYY4eAqB-KyCj1tOoCZgGSVpygj0sV6_P2xqy24pq_35jGGZpexio73FhoH62DynNrD_alt9qV5AW73NC4B5OQskF=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHGDkKWDWurbhYLdGICU8VU5QzZp73SAxrD-t1jfUqc5rBJGApgMIXDbBPsEELaLdpChpZ1vnmHj9OUsPgDkuh_KKUZCsPiptAL3WOC49MYsbJMPzKrU_zhgfExW_zjRctsJyijQs4OlyJF=s800-w800-h500"],
+  desc:"A striking beach west of Albufeira distinguished by dramatic basalt and limestone rock formations rising from the sand — isolated stacks and boulders that break up the beach into smaller, semi-sheltered sections. The formations create excellent snorkelling territory and the visual variety makes it one of the most photographed beaches in the area.",
+  distance:"~40 km west of Faro · 1.5 km west of Albufeira old town",transport:"Walk west along the coastal path from Albufeira old town (20 min) · Taxi from Albufeira: ~€5 · Car park at the clifftop",cost:"Free",time:"2–3 hours",
+  tip:"Bring a mask and fins — the rock pools and boulders offer some of the best snorkelling on the central Algarve. Morning light from the east illuminates the rock formations from behind for dramatic photography.",may:"Late May water visibility is at its peak before summer boat and beach traffic stirs up the sand. One of the best central Algarve beaches for snorkelling in spring."},
+
+  {id:27,name:"Praia da Falésia",emoji:"🏖️",cat:"Red Cliff Beach · Albufeira / Olhos de Água",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.0834,lng:-8.1591,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGFl3Gff_Xq66xh0rhubeK4pNH4ENcBWRsWqHigbU09JYtCzhlCxU6O4CTMvOXmybMnUP1-Ee698whofV4iv5-Ij-qBitJ9ryCsbOuNHS5DrxptDoTm3Owauei0mITiK0ltbOkjZzGfZKcPCw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFSLEkTgms1LKXg_gbSYoeknkqjWdEeTPhszirmdJK0f9gvgfoOnxDCxVHiThKWpUZaOWO1h7mwurEJOL9yeai-oKou3kk7fcEnxUj7lzxSbLVqNhphJekKV_x34kepT_db1VOH5RQHDHpZLL8=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGYxEetqlMjCYJ8nJEsrH4WC0SMW_BRZAovFsjmLpdJb0yLMRcHWfW_bS75lqrj6rulRw8VKfHk3ZG_WewcWMxLNdqHnqdJPl915SouYSvyKaAQRn_sSQFxu-I-Ib_dOwqVAi4cAu9PJpXPr14=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNF7FO11Q4NKpFDpfZVW3iJzdDPpgL2NrHxmvwovYZAKA-5ngnQus6GDWsyFCtEVNMPKMTc4nfkkdyksxPIX1AhSiMYbpLHBf2ZFAXHLO-Gsy3OSiZr-vNBfEv4TISVcnm3vYriAJ5VtEvIl=s800-w800-h500"],
+  desc:"One of the most visually striking beaches in the Algarve — a 6-km sweep of fine golden sand beneath towering orange and red sandstone falésia cliffs up to 30 metres high. The cliffs are deeply eroded into fluted columns and alcoves, particularly photogenic in afternoon and evening light when they glow deep amber.",
+  distance:"~48 km west of Faro · East of Albufeira toward Olhos de Água and Vilamoura",transport:"Bus from Albufeira or Vilamoura · Car park access at Olhos de Água end (easiest) · The beach is long enough that uncrowded sections are always available",cost:"Free",time:"Half day",
+  tip:"Walk the full length of the beach to appreciate how the cliff face changes in colour and texture. The western end (Olhos de Água section) is most dramatic for formations; the eastern end is quieter. The cliff-top path is excellent for photography looking back along the full sweep of orange cliffs.",may:"Late May afternoon light turns the red-orange cliffs extraordinary shades of amber and copper — one of the finest sunset beaches on the central Algarve. Manageable crowds thanks to the sheer length of the beach."},
+
+  {id:28,name:"Praia do Barril & Anchor Cemetery",emoji:"⚓",cat:"Barrier Island Beach · Tavira · Eastern Algarve",tag:"beach",priceLabel:"Free / €2 miniature train",free:true,
+  lat:37.0868,lng:-7.6614,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGriaHzoHatsQfyKmr0mDmzPH8X3cemrPYWStGXjpb60A57VEAEAs-_bGZevjLXRgVaZPLjcM8roCJKiNnRFAtOHg936mYfg8TaX3j3qVs4YQexZetbtAFpRgpjFHgTmcH-YXgrdg8y7CcyAPY=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNGT4V9f_xMeCB54uk8vRHZLivof1rjq6dGIIj_jo3vInvMw31fglAhoNnIyrTxNdYwlR2OxSQDsDIyxMnjftRez2hgTk4uNboUNPN-va5V5oHLPu9fjJf_sHaNnH18wdy4KHGxO1T3CLuGRNg=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNHWBf1RssQbGK1QXrEwPEiSPGyUbu5w7tZRMpyzOtrzpDaM0taW16BgX7y8WTzKZcG1J4trJukRnnWyVlFCg_YzGLEMxmnHz-rks5XY83F3f4zU3vFXHRdgX2LjlccoRyXXIKk3otqmLWa-cTb-mByXLQ=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNET40OMCK-mWTOaJZx2fSXx4FVMPOUG-FSIM2q8TuhNT2Lau97WXhWdE-Ap1WliRSJ8CrzwOtkAK15AmnTPLJpM5gsSjjbYH7726lQhQG-BzNysyRC6oB_Pur6eoAneyYK0l5cfoyz4WzsC=s800-w800-h500"],
+  desc:"A spectacular barrier island beach most famous for the Cemitério das Âncoras — hundreds of iron anchors left by tuna fishermen at the end of the long-line tuna fishing era. The beach itself is outstanding: 3 km of clean Atlantic sand with crystal-clear water. The island retains an unspoiled quality rare on the Algarve coast.",
+  distance:"33 km east of Faro · 5 km east of Tavira town",transport:"Drive or bus to Pedras del Rei, then miniature train (€2 return) across the lagoon causeway to the island, then 10-min walk to the beach",cost:"Free · Miniature train: €2 return",time:"Half day",
+  tip:"The miniature train across the lagoon causeway is half the experience — a charming coastal rail crossing with lagoon views on both sides. Walk west along the beach from the main access point to find quieter sections away from the sunbed zone.",may:"Late May Praia do Barril is beautifully quiet — the lagoon water is already warm enough for comfortable swimming and the island has a wonderful early-season freshness. One of the best beaches in the eastern Algarve for a peaceful morning."},
+
+  {id:29,name:"Praia de São Roque",emoji:"🏖️",cat:"Local Residential Beach · Lagos",tag:"beach",priceLabel:"Free",free:true,
+  lat:37.1032,lng:-8.6675,
+  photos:["https://lh3.googleusercontent.com/place-photos/AL8-SNGIHgwbrYVQ5N3UQ3xws4HE0bnetVhThlgBj9hsYJcZNTrg0276r3QZfL3_RUrNPyhIpXRjtxk8ARGmjhLVGk5qFSqP6VqgurAfp9ms83Qi11ubTPZ9yDB9q4sPiFUClqGRuR6ivF0578MmiDw=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNFKsNQ6ZpfpcZeHwtNiPg3JpS5UUmxE3npbMdcq2-tqIGJjNi7LFkjIPBv7Px7zWzetm5PMKpQZpVhXw3zKd9ZA1kymAz-DZqQ-lqCtnrbtp7AgEF3bjIbCy6O5DeGvvJ5nLXRopyhgfDNv3DI=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNE5kzV4TT8YAvXNQMOTTeSC4NnLz27IG-g0iPXiLzNBs8cbRL2DWVSAURpnfJLFfEf0ARGaJ1nldIBMYpnp8IptTilSTykoAOlTAsUxbovUqHWd9qhhGZYgX19mvlyaKmfzq7qg4WdWXHi80MU=s800-w800-h500","https://lh3.googleusercontent.com/place-photos/AL8-SNESYqjipQ1PXJsn2OwBYI4K_PFjMGRxVnJkEgKYhJsmFgnOT7jsPFZlTiLDP2vk5f2Q4jIrIlgdFx-SKf95Yf1hpWzPiMMMfep0qkSrZszbqUat1IQgZ2-3ohCPzNB2g_uVm_8Oqhec-AX81Q=s800-w800-h500"],
+  desc:"A broad, uncrowded beach on the western edge of Lagos popular with local families and significantly less developed than the cliff beaches nearby. Wide sandy beach with good facilities, a beach bar, and a local neighbourhood character that the main tourist beaches lack.",
+  distance:"~3 km west of Lagos town centre",transport:"Car along the coastal road west of Lagos · Bus from Lagos centre · Taxi: ~€7",cost:"Free",time:"Half day",
+  tip:"A good alternative to the crowded Praia da Rocha on peak days. The cliff walk east to Lagos takes about 30 minutes and passes several small cove viewpoints. Combine with a lunch at Lagos old town for a relaxed full day.",may:"Late May Praia de São Roque is lively with local families starting their beach season but nowhere near capacity. A pleasant, authentic beach day with none of the resort-strip atmosphere."}
+
+
+];
+
+// ── SLIDESHOW ─────────────────────────────────────────────────────────────────
+const ssState = {};
+P.forEach(p => ssState[p.id] = { cur: 0, total: p.photos.length });
+function goSlide(id, idx) {
+  const ss = document.getElementById('ss-' + id);
+  if (!ss) return;
+  const slides = ss.querySelectorAll('.slide');
+  const dots = ss.querySelectorAll('.dot');
+  slides[ssState[id].cur].classList.remove('active');
+  dots[ssState[id].cur] && dots[ssState[id].cur].classList.remove('active');
+  ssState[id].cur = idx;
+  slides[idx].classList.add('active');
+  dots[idx] && dots[idx].classList.add('active');
+}
+function changeSlide(id, dir) {
+  const s = ssState[id];
+  goSlide(id, (s.cur + dir + s.total) % s.total);
+}
+function toggleDetails(id) {
+  const btn = document.getElementById('dtbtn-' + id);
+  const body = document.getElementById('dtbody-' + id);
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('.arrow').textContent = open ? '▲' : '▼';
+  btn.querySelector('.label').textContent = open ? 'Less details' : 'More details';
+}
+function priceBadge(p) {
+  const isFree = p.priceLabel.startsWith('Free') && !p.priceLabel.includes('/');
+  return `<span style="color:${isFree ? '#7de0a0' : '#fff'}">${p.priceLabel}</span>`;
+}
+
+// ── RENDER CARDS ──────────────────────────────────────────────────────────────
+const tagColors = { town:'#1B3A6B', beach:'#0B6C55', nature:'#4A6B0A', daytrip:'#8B3A1A' };
+const grid = document.getElementById('places-grid');
+const markers = {};
+
+P.forEach(p => {
+  const slides = p.photos.map((url, i) =>
+    `<div class="slide${i===0?' active':''}"><img src="${url}" alt="" loading="${i===0?'eager':'lazy'}" onerror="this.style.display='none'"></div>`
+  ).join('');
+  const dots = p.photos.map((_,i) =>
+    `<span class="dot${i===0?' active':''}" onclick="goSlide(${p.id},${i})"></span>`
+  ).join('');
+
+  const badgeCls = p.tag==='beach' ? 'cat-badge beach-badge' : p.tag==='daytrip' ? 'cat-badge daytrip-badge' : 'cat-badge';
+  const badgeLabel = p.cat.split('·')[0].trim();
+
+  const card = document.createElement('div');
+  card.className='place-card';
+  card.dataset.tag=p.tag;
+  card.dataset.free=p.free?'true':'false';
+  card.id='card-'+p.id;
+  card.innerHTML=`
+    <div style="position:relative">
+      <div class="slideshow" id="ss-${p.id}">
+        ${slides}
+        ${p.photos.length>1?`
+        <button class="slide-btn slide-prev" onclick="changeSlide(${p.id},-1)">&#8249;</button>
+        <button class="slide-btn slide-next" onclick="changeSlide(${p.id},1)">&#8250;</button>
+        <div class="slide-dots">${dots}</div>`:''}
+      </div>
+      <span class="${badgeCls}">${badgeLabel}</span>
+      <div class="price-badge">${priceBadge(p)}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">${p.emoji} ${p.name}</div>
+      <div class="card-hint">🗺️ Click card to locate on map</div>
+      <div class="card-category">${p.cat}</div>
+      <div class="card-desc">${p.desc}</div>
+      <button class="details-toggle" id="dtbtn-${p.id}" onclick="toggleDetails(${p.id})">
+        <span class="label">More details</span> <span class="arrow">▼</span>
+      </button>
+      <div class="details-body" id="dtbody-${p.id}">
+        <div class="info-row"><span class="info-label">📍 Distance</span><span class="info-value">${p.distance}</span></div>
+        <div class="info-row"><span class="info-label">🚌 Getting There</span><span class="info-value">${p.transport}</span></div>
+        <div class="info-row"><span class="info-label">💶 Entry</span><span class="info-value">${p.cost}</span></div>
+        <div class="info-row"><span class="info-label">🕒 Time</span><span class="info-value">${p.time}</span></div>
+        <div class="info-row tip"><span class="info-label">💡 Tip</span><span class="info-value">${p.tip}</span></div>
+        <div class="info-row may"><span class="info-label">🌞 Late May</span><span class="info-value">${p.may}</span></div>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+
+  card.style.cursor='pointer';
+  card.addEventListener('click', function(e) {
+    if(e.target.closest('.slide-btn')||e.target.closest('.dot')||e.target.closest('.details-toggle')||e.target.closest('a')) return;
+    const zoom = p.tag==='daytrip'||p.id===17?11:14;
+    map.flyTo([p.lat,p.lng],zoom,{duration:1.0});
+    setTimeout(()=>markers[p.id].openPopup(),1100);
+    document.querySelectorAll('.place-card').forEach(c=>c.classList.remove('highlighted'));
+    card.classList.add('highlighted');
+    setTimeout(()=>card.classList.remove('highlighted'),2500);
+  });
+});
+
+// ── LEAFLET MAP ───────────────────────────────────────────────────────────────
+const map = L.map('map').setView([37.13, -8.35], 9);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19
+}).addTo(map);
+
+P.forEach(p => {
+  const color = tagColors[p.tag]||'#1B3A6B';
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="background:${color};color:#fff;border:2.5px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:pointer">${p.emoji}</div>`,
+    iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-20]
+  });
+  const m = L.marker([p.lat,p.lng],{icon}).addTo(map);
+  m.bindPopup(`
+    <div style="font-family:sans-serif;min-width:190px">
+      <strong style="font-size:.92rem">${p.emoji} ${p.name}</strong><br>
+      <span style="font-size:.78rem;color:#666;font-style:italic">${p.cat}</span><br>
+      <span style="font-size:.78rem;color:#555;margin-top:2px;display:block">${p.priceLabel}</span>
+      <a href="#card-${p.id}" onclick="scrollToCard(${p.id})" style="display:inline-block;margin-top:6px;font-size:.78rem;color:#0B4F6C;font-weight:600;text-decoration:none;border:1px solid #D0EAF5;padding:3px 9px;border-radius:5px">View card ↓</a>
+    </div>`);
+  markers[p.id]=m;
+});
+
+function scrollToCard(id) {
+  const card=document.getElementById('card-'+id);
+  if(!card) return;
+  const panel=document.getElementById('cards-panel');
+  panel.scrollTo({top:card.offsetTop-panel.offsetTop-10,behavior:'smooth'});
+  document.querySelectorAll('.place-card').forEach(c=>c.classList.remove('highlighted'));
+  card.classList.add('highlighted');
+  setTimeout(()=>card.classList.remove('highlighted'),2500);
+}
+
+function filterCards(tag, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let count=0;
+  document.querySelectorAll('.place-card').forEach(c=>{
+    let show;
+    if(tag==='all') show=true;
+    else if(tag==='free') show=c.dataset.free==='true';
+    else show=c.dataset.tag===tag;
+    c.classList.toggle('hidden',!show);
+    if(show) count++;
+  });
+  document.getElementById('count-badge').textContent=count+' place'+(count===1?'':'s');
+  P.forEach(p=>{
+    let show;
+    if(tag==='all') show=true;
+    else if(tag==='free') show=p.free===true;
+    else show=p.tag===tag;
+    if(show){if(!map.hasLayer(markers[p.id])) markers[p.id].addTo(map);}
+    else{if(map.hasLayer(markers[p.id])) markers[p.id].remove();}
+  });
+}
+</script>
+</body>
+</html>
